@@ -1,0 +1,230 @@
+#include "cache.h"
+
+#define LLC_DATA_INSERTION_PRIORITY 12
+#define LLC_TRANSLATION_INSERTION_PRIORITY 0
+//#define HIT_PROMOTION 1
+
+// initialize replacement state
+void CACHE::llc_initialize_replacement() {
+  cout << NAME << " has LRU replacement policy"
+       << " Data Insertion Priority: " << LLC_DATA_INSERTION_PRIORITY
+       << " Translation Insertion Priority: " << LLC_TRANSLATION_INSERTION_PRIORITY
+       << endl;
+}
+
+// find replacement victim
+uint32_t CACHE::llc_find_victim(uint32_t cpu, uint64_t instr_id, uint32_t set,
+                                const BLOCK *current_set, uint64_t ip,
+                                uint64_t full_addr, uint32_t type) {
+  uint32_t way = 0;
+
+  // fill invalid line first
+  for (way = 0; way < NUM_WAY; way++) {
+    if (block[set][way].valid == false) {
+
+      DP(if (warmup_complete[cpu]) {
+        cout << "[" << NAME << "] " << __func__ << " instr_id: " << instr_id
+             << " invalid set: " << set << " way: " << way;
+        cout << hex << " address: " << (full_addr >> LOG2_BLOCK_SIZE)
+             << " victim address: " << block[set][way].address
+             << " data: " << block[set][way].data;
+        cout << dec << " lru: " << block[set][way].lru << endl;
+      });
+
+      break;
+    }
+  }
+
+  // LRU victim
+  if (way == NUM_WAY) {
+    for (way = 0; way < NUM_WAY; way++) {
+      if (block[set][way].lru == NUM_WAY - 1) {
+
+        DP(if (warmup_complete[cpu]) {
+          cout << "[" << NAME << "] " << __func__ << " instr_id: " << instr_id
+               << " replace set: " << set << " way: " << way;
+          cout << hex << " address: " << (full_addr >> LOG2_BLOCK_SIZE)
+               << " victim address: " << block[set][way].address
+               << " data: " << block[set][way].data;
+          cout << dec << " lru: " << block[set][way].lru << endl;
+        });
+
+        break;
+      }
+    }
+  }
+
+  if (way == NUM_WAY) {
+    cerr << "[" << NAME << "] " << __func__ << " no victim! set: " << set
+         << endl;
+    assert(0);
+  }
+
+
+//@Rahul: calculating dead blocks
+#ifdef FIND_DEAD_BLOCKS
+  if (block[set][way].valid) {
+    if (block[set][way].used) {
+      used_total++;
+    }else{
+      unused_total++;
+    }
+
+    if (block[set][way].type == LOAD){
+      if (block[set][way].used) {
+        used_load++;
+      }else{
+        unused_load++;
+      }
+    }
+
+    if (block[set][way].type == LOAD_TRANSLATION){
+      if (block[set][way].used) {
+        used_translations++;
+      }else{
+        unused_translations++;
+      }
+    }
+  }
+#endif
+
+
+#ifdef FIND_INTERFERENCE
+  if (block[set][way].valid) {
+
+    total_eviction++;
+    if (block[set][way].type == LOAD_TRANSLATION){
+      total_translation_evictions++;
+    }
+
+    if (type == LOAD_TRANSLATION) {
+
+      if (block[set][way].type == LOAD_TRANSLATION){
+        translation_evicting_translation++;
+
+      }else if (block[set][way].type == LOAD) {
+        translation_evicting_load++;
+      }
+
+    }else if (type == LOAD){
+
+      if (block[set][way].type == LOAD_TRANSLATION){
+        load_evicting_translation++;
+
+      }else if (block[set][way].type == LOAD) {
+        load_evicting_load++;
+      }
+    }
+  }
+#endif
+
+
+  return way;
+
+}
+
+// called on every cache hit and cache fill
+void CACHE::llc_update_replacement_state(uint32_t cpu, uint32_t set,
+                                         uint32_t way, uint64_t full_addr,
+                                         uint64_t ip, uint64_t victim_addr,
+                                         uint32_t type, uint8_t hit) {
+
+  if ((type == WRITEBACK) && ip)
+    assert(0);
+
+  // uncomment this line to see the LLC accesses
+  // cout << "CPU: " << cpu << "  LLC " << setw(9) << TYPE_NAME << " set: " <<
+  // setw(5) << set << " way: " << setw(2) << way; cout << hex << " paddr: " <<
+  // setw(12) << paddr << " ip: " << setw(8) << ip << " victim_addr: " <<
+  // victim_addr << dec << endl;
+
+  // baseline LRU
+  if (hit && (type == WRITEBACK)) // writeback hit does not update LRU state
+    return;
+
+  // update lru replacement state
+  if (hit) {
+    // hit promotion
+
+      for (uint32_t i = 0; i < NUM_WAY; i++) {
+        if (block[set][i].lru < block[set][way].lru) {
+          block[set][i].lru++;
+        }
+      }
+      block[set][way].lru = 0; // promote to the MRU position
+
+
+/*   if (type == LOAD_TRANSLATION) {
+      for (uint32_t i = 0; i < NUM_WAY; i++) {
+        if (block[set][i].lru < block[set][way].lru) {
+          block[set][i].lru++;
+        }
+      }
+      block[set][way].lru = 0; // promote to the MRU position
+    }else {
+      if (block[set][way].lru != 0) {
+        for (uint32_t i = 0; i < NUM_WAY; i++) {
+          if (block[set][i].lru == (block[set][way].lru - 1)) {
+             block[set][i].lru++;
+             break;
+          }
+        }
+        block[set][way].lru--; // promote by one position
+      }
+    }
+
+   
+    if (type == LOAD_TRANSLATION) {
+      for (uint32_t i = 0; i < NUM_WAY; i++) {
+        if (block[set][i].lru < block[set][way].lru) {
+          block[set][i].lru++;
+        }
+      }
+      block[set][way].lru = 0; // promote to the MRU position
+    }else {
+     
+      uint32_t hp = 0;
+      while(hp < HIT_PROMOTION){
+
+        if (block[set][way].lru != 0) {
+          for (uint32_t i = 0; i < NUM_WAY; i++) {
+            if (block[set][i].lru == (block[set][way].lru - 1)) {
+               block[set][i].lru++;
+               break;
+            }
+          }
+          block[set][way].lru--; // promote by one position
+        }
+
+        hp++;
+      }
+    }
+*/
+    
+  }else {
+    // Insertion
+
+    if (type == LOAD_TRANSLATION) {
+#ifdef PTW_LLC
+      assert(0);
+#endif
+      for (uint32_t i = 0; i < NUM_WAY; i++) {
+        if (LLC_TRANSLATION_INSERTION_PRIORITY <= block[set][i].lru && block[set][i].lru < block[set][way].lru) {
+          block[set][i].lru++;
+        }
+      }
+      block[set][way].lru = LLC_TRANSLATION_INSERTION_PRIORITY ;
+    } else{
+      for (uint32_t i = 0; i < NUM_WAY; i++) {
+        if (LLC_DATA_INSERTION_PRIORITY <= block[set][i].lru && block[set][i].lru < block[set][way].lru) {
+          block[set][i].lru++;
+        }
+      }
+      block[set][way].lru = LLC_DATA_INSERTION_PRIORITY; 
+    }
+
+  }
+
+}
+
+void CACHE::llc_replacement_final_stats() {}

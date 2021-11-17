@@ -1,0 +1,265 @@
+#include "cache.h"
+
+#define MAX_TRIP_COUNT 4096
+
+#define L2C_DATA_INSERTION_PRIORITY 7
+#define L2C_TRANSLATION_INSERTION_PRIORITY 0
+
+// initialize replacement state
+void CACHE::l2c_initialize_replacement() {
+  cout << NAME << " has Trip LRU replacement policy, max trip count: " << MAX_TRIP_COUNT << endl;
+}
+
+
+// find replacement victim
+uint32_t CACHE::l2c_find_victim(uint32_t cpu, uint64_t instr_id, uint32_t set,
+                                const BLOCK *current_set, uint64_t ip,
+                                uint64_t full_addr, uint32_t type) {
+  // baseline LRU
+ 
+  uint32_t way = 0;
+
+  // fill invalid line first
+  for (way = 0; way < NUM_WAY; way++) {
+    if (block[set][way].valid == false) {
+
+      DP(if (warmup_complete[cpu]) {
+        cout << "[" << NAME << "] " << __func__ << " instr_id: " << instr_id
+             << " invalid set: " << set << " way: " << way;
+        cout << hex << " address: " << (full_addr >> LOG2_BLOCK_SIZE)
+             << " victim address: " << block[set][way].address
+             << " data: " << block[set][way].data;
+        cout << dec << " lru: " << block[set][way].lru << endl;
+      });
+
+      break;
+    }
+  }
+ 
+
+  // LRU victim
+  bool is_victim_translation = false, is_data_line_available = false;
+  uint32_t data_lru = 0, data_way = 0, translation_way = 0;
+
+  if (way == NUM_WAY) {
+    for (way = 0; way < NUM_WAY; way++) {
+
+      if (block[set][way].lru == NUM_WAY - 1) {
+
+        if (block[set][way].type == LOAD_TRANSLATION) {
+          is_victim_translation = true;
+          translation_way = way;
+        }else {
+        
+          DP(if (warmup_complete[cpu]) {
+            cout << "[" << NAME << "] " << __func__ << " instr_id: " << instr_id
+                 << " replace set: " << set << " way: " << way;
+            cout << hex << " address: " << (full_addr >> LOG2_BLOCK_SIZE)
+                 << " victim address: " << block[set][way].address
+                 << " data: " << block[set][way].data;
+            cout << dec << " lru: " << block[set][way].lru << endl;
+          });
+          break;
+        }
+
+
+      }else if(block[set][way].type != LOAD_TRANSLATION){
+        //  cout << "Alternate data victim: "<<block[set][way].lru <<endl;
+        if (data_lru <= block[set][way].lru){
+
+          data_way = way;
+          data_lru = block[set][way].lru;
+          is_data_line_available = true;
+        }
+
+      }
+    }
+  }
+
+  if(is_victim_translation){
+
+    //When MAX_TRIP_COUNT 256, behaves as normal LRU
+
+    if (block[set][translation_way].trip_count < MAX_TRIP_COUNT){
+
+      if (is_data_line_available){
+        way = data_way;
+        alternate_victim++;
+      }else{
+        way = translation_way;
+        no_alternate_victim++;
+      }
+
+    }else{
+
+      way = translation_way;
+
+#ifdef BYPASS_TRANSLATIONS
+    if (block[set][way].used == 0){
+      //cout << hex << "Update address: " << (block[set][way].address) << dec << endl;
+      dont_fill_translation.insert(block[set][way].address);
+      fill_translation.erase(block[set][way].address);
+    }
+#endif
+
+      translations_exceeding_trip_count++;
+    }
+
+    block[set][translation_way].trip_count++;
+
+    DP(if (warmup_complete[cpu]) {
+      cout << "[" << NAME << "] " << __func__ << " instr_id: " << instr_id
+           << " replace set: " << set << " way: " << way;
+      cout << hex << " address: " << (full_addr >> LOG2_BLOCK_SIZE)
+           << " victim address: " << block[set][way].address
+           << " data: " << block[set][way].data;
+      cout << dec << " lru: " << block[set][way].lru << endl;
+     });
+   
+
+  }
+
+  if (way == NUM_WAY) {
+    cerr << "[" << NAME << "] " << __func__ << " no victim! set: " << set
+         << endl;
+    assert(0);
+  }
+
+
+//@Rahul: calculating dead blocks
+#ifdef FIND_DEAD_BLOCKS
+  if (block[set][way].valid) {
+    if (block[set][way].used) {
+      used_total++;
+    }else{
+      unused_total++;
+    }
+
+    if (block[set][way].type == LOAD){
+      if (block[set][way].used) {
+        used_load++;
+      }else{
+        unused_load++;
+      }
+    }
+
+    if (block[set][way].type == LOAD_TRANSLATION){
+      if (block[set][way].used) {
+        used_translations++;
+      }else{
+        unused_translations++;
+      }
+    }
+  }
+#endif
+
+#ifdef FIND_INTERFERENCE
+  total_eviction++;
+
+  if (type == LOAD_TRANSLATION) {
+
+    if (block[set][way].type == LOAD_TRANSLATION){
+      translation_evicting_translation++;
+
+    }else if (block[set][way].type == LOAD) {
+      translation_evicting_load++;
+    }
+
+  }else if (type == LOAD){
+
+    if (block[set][way].type == LOAD_TRANSLATION){
+      load_evicting_translation++;
+
+    }else if (block[set][way].type == LOAD) {
+      load_evicting_load++;
+    }
+
+  }
+#endif
+
+  return way;
+}
+
+// called on every cache hit and cache fill
+void CACHE::l2c_update_replacement_state(uint32_t cpu, uint32_t set,
+                                         uint32_t way, uint64_t full_addr,
+                                         uint64_t ip, uint64_t victim_addr,
+                                         uint32_t type, uint8_t hit) {
+
+  if ((type == WRITEBACK) && ip)
+    assert(0);
+
+ 
+  //cout<< " update set: " << set << " way: " << way<<endl;
+  // uncomment this line to see the L1D accesses
+  // cout << "CPU: " << cpu << "  L1D " << setw(9) << TYPE_NAME << " set: " <<
+  // setw(5) << set << " way: " << setw(2) << way; cout << hex << " paddr: " <<
+  // setw(12) << paddr << " ip: " << setw(8) << ip << " victim_addr: " <<
+  // victim_addr << dec << endl;
+
+  // baseline LRU
+  if (hit && (type == WRITEBACK)) { // writeback hit does not update LRU state
+    //cout<<"Writeback"<<endl;
+    return;
+  }
+
+#ifdef BYPASS_TRANSLATIONS
+    if (hit == 1 && type == LOAD_TRANSLATION){
+      fill_translation.insert(full_addr >> LOG2_BLOCK_SIZE);
+    }
+#endif
+
+  // update lru replacement state
+  if (hit) {
+    // hit promotion
+
+/*      for (uint32_t i = 0; i < NUM_WAY; i++) {
+        if (block[set][i].lru < block[set][way].lru) {
+          block[set][i].lru++;
+        }
+      }
+      block[set][way].lru = 0; // promote to the MRU position
+*/
+
+    if (type == LOAD_TRANSLATION) {
+      for (uint32_t i = 0; i < NUM_WAY; i++) {
+        if (block[set][i].lru < block[set][way].lru) {
+          block[set][i].lru++;
+        }
+      }
+      block[set][way].lru = 0; // promote to the MRU position
+    }else {
+      if (block[set][way].lru != 0) {
+        for (uint32_t i = 0; i < NUM_WAY; i++) {
+          if (block[set][i].lru == (block[set][way].lru - 1)) {
+             block[set][i].lru++;
+             break;
+          }
+        }
+        block[set][way].lru--; // promote by one position
+      }
+    }
+
+  }else {
+    // Insertion
+
+    if (type == LOAD_TRANSLATION) {
+      for (uint32_t i = 0; i < NUM_WAY; i++) {
+        if (L2C_TRANSLATION_INSERTION_PRIORITY <= block[set][i].lru && block[set][i].lru < block[set][way].lru) {
+          block[set][i].lru++;
+        }
+      }
+      block[set][way].lru = L2C_TRANSLATION_INSERTION_PRIORITY ;
+    } else{
+        for (uint32_t i = 0; i < NUM_WAY; i++) {
+          if (L2C_DATA_INSERTION_PRIORITY <= block[set][i].lru && block[set][i].lru < block[set][way].lru) {
+            block[set][i].lru++;
+          }
+        }
+        block[set][way].lru = L2C_DATA_INSERTION_PRIORITY;
+      }
+  }
+
+}
+
+void CACHE::l2c_replacement_final_stats() {}
