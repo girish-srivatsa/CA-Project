@@ -1,0 +1,17 @@
+Efficient Cache replacement policies for Graph Applications:
+
+
+1. Graphs generally stored as CSR/CSC(Compressed Space Row/column). 
+    1. CSR stores the outgoing neighbours. 
+    2. CSC stores the incoming neighbours.
+    3. Stored as two arrays - OA(Offset array), NA(neighbour array).
+    4. OA stores the starting offset of a vertex’s neighbours in NA, which contiguously stores each vertex’s neighbours.
+    5. To access the neighbour of vertex I in constant time, an application accesses the ith and (i + 1)th entries in OA to find the range of the indices that contain the neighbours of i.
+    6. Push Execution - traversing outgoing neighbours.
+    7. Pull Execution - traversing incoming neighbours.
+2. What about previous state-of-the-art policies? 
+    1. Not good enough, Gives almost same MPKI as that of LRU. 
+    2. Graph processing applications do not meet their expectations.
+    3. SHIP, Hawkeye use PC to predict re-reference, assuming that all accesses by an instruction have the same reuse properties
+3. T-OPT:
+		 
