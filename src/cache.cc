@@ -19,6 +19,10 @@ ostream &operator<<(ostream &os, const PACKET &packet) {
             << endl;
 };
 
+void CACHE::updateRegIndex(int32_t idx,int tid){
+  cout<<"idx: "<<idx<<endl;
+}
+
 void CACHE::handle_fill() {
   // handle fill
   uint32_t fill_cpu = (MSHR.next_fill_index == MSHR_SIZE)

@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string>
+#include "uncore.h"
 
 #define NUM_INSTR_DESTINATIONS 2
 #define NUM_INSTR_SOURCES 4
@@ -39,6 +40,12 @@ bool output_file_closed = false;
 bool tracing_on = false;
 
 trace_instr_format_t curr_instr;
+
+void updateRegIndex(int32_t index, int tid)
+{
+    uncore.LLC.updateRegIndex(index,tid);
+}
+
 
 /* ===================================================================== */
 // Command line switches
@@ -367,6 +374,15 @@ VOID Instruction(INS ins, VOID *v)
     INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)EndInstruction, IARG_END);
 }
 
+void Routine(RTN rtn, void* v)
+{
+    std::string rtn_name = RTN_Name(rtn);
+    if (rtn_name.find("PIN_UpdateRegIndex") != std::string::npos)
+    {
+        RTN_Replace(rtn, AFUNPTR(updateRegIndex));
+    }
+}
+
 /*!
  * Print out analysis results.
  * This function is called when the application exits.
@@ -406,6 +422,9 @@ int main(int argc, char *argv[])
         cout << "Couldn't open output trace file. Exiting." << endl;
         exit(1);
     }
+
+    // Register function to be called to register Routines
+    RTN_AddInstrumentFunction(Routine, 0);
 
     // Register function to be called to instrument instructions
     INS_AddInstrumentFunction(Instruction, 0);
