@@ -44,7 +44,9 @@ trace_instr_format_t curr_instr;
 
 void updateRegIndex(int32_t index, int tid)
 {
-    
+    std::cout<<"hello_in"<<std::endl;
+    std::string trial = "hello-it works";
+    fwrite(trial.c_str(),trial.size(),1,out);
 }
 
 
@@ -378,9 +380,8 @@ VOID Instruction(INS ins, VOID *v)
 void Routine(RTN rtn, void* v)
 {
     std::string rtn_name = RTN_Name(rtn);
-    if (rtn_name.find("PIN_UpdateRegIndex") != std::string::npos)
-    {
-        RTN_Replace(rtn, AFUNPTR(updateRegIndex));
+    if(rtn_name == "_Z14UpdateRegIndexii"){
+        
     }
 }
 
@@ -401,6 +402,38 @@ VOID Fini(INT32 code, VOID *v)
     }
 }
 
+VOID Before(int dwFlags, int dwBytes)
+{
+    std::cout<< "Before: " << "(" << dwFlags << ", " << dwBytes << ")" << std::endl;
+}
+ 
+VOID Image(IMG img, VOID* v)
+{
+    // Walk through the symbols in the symbol table.
+    //
+    for (SYM sym = IMG_RegsymHead(img); SYM_Valid(sym); sym = SYM_Next(sym))
+    {
+        string undFuncName = PIN_UndecorateSymbolName(SYM_Name(sym), UNDECORATION_NAME_ONLY);
+ 
+        //  Find the RtlAllocHeap() function.
+        if (undFuncName == "UpdateRegIndex")
+        {
+            RTN allocRtn = RTN_FindByAddress(IMG_LowAddress(img) + SYM_Value(sym));
+ 
+            if (RTN_Valid(allocRtn))
+            {
+                    // Instrument to print the input argument value and the return value.
+                RTN_Open(allocRtn);
+
+                RTN_InsertCall(allocRtn, IPOINT_BEFORE, (AFUNPTR)Before,
+                            IARG_FUNCARG_ENTRYPOINT_VALUE, 0, IARG_FUNCARG_ENTRYPOINT_VALUE, 1 , IARG_END);
+
+                RTN_Close(allocRtn);
+            }
+        }
+  
+    }
+}
 /*!
  * The main procedure of the tool.
  * This function is called when the application image is loaded but not yet started.
@@ -412,6 +445,7 @@ int main(int argc, char *argv[])
 {
     // Initialize PIN library. Print help message if -h(elp) is specified
     // in the command line or the command line is invalid 
+    PIN_InitSymbols();
     if( PIN_Init(argc,argv) )
         return Usage();
 
@@ -423,6 +457,8 @@ int main(int argc, char *argv[])
         cout << "Couldn't open output trace file. Exiting." << endl;
         exit(1);
     }
+
+    IMG_AddInstrumentFunction(Image, 0);
 
     // Register function to be called to register Routines
     RTN_AddInstrumentFunction(Routine, 0);
