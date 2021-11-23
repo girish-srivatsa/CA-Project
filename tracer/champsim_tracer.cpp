@@ -10,7 +10,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string>
-#include "uncore.h"
+
+using namespace std;
 
 #define NUM_INSTR_DESTINATIONS 2
 #define NUM_INSTR_SOURCES 4
@@ -43,7 +44,7 @@ trace_instr_format_t curr_instr;
 
 void updateRegIndex(int32_t index, int tid)
 {
-    uncore.LLC.updateRegIndex(index,tid);
+    
 }
 
 
