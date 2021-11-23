@@ -42,7 +42,7 @@ bool tracing_on = false;
 
 trace_instr_format_t curr_instr;
 
-void updateRegIndex(int32_t index, int tid)
+void updateRegIndex(int index)
 {
     std::cout<<"hello_in"<<std::endl;
     std::string trial = "hello-it works";
@@ -377,11 +377,22 @@ VOID Instruction(INS ins, VOID *v)
     INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)EndInstruction, IARG_END);
 }
 
+void Before(int index){
+    std::string test="testing123";
+    std::cout<<test<<" "<<index<<std::endl;
+    fwrite(test.c_str(),test.size(),1,out);
+}
+
 void Routine(RTN rtn, void* v)
 {
     std::string rtn_name = RTN_Name(rtn);
-    if(rtn_name == "_Z14UpdateRegIndexii"){
-        
+    if(rtn_name.find("UpdateRegIndex")!=std::string::npos){
+        // Instrument to print the input argument value and the return value.
+        RTN_Open(rtn);
+
+        RTN_InsertCall(rtn, IPOINT_BEFORE, AFUNPTR(Before), IARG_FUNCARG_ENTRYPOINT_VALUE, 0, IARG_END);
+
+        RTN_Close(rtn);
     }
 }
 
@@ -402,11 +413,7 @@ VOID Fini(INT32 code, VOID *v)
     }
 }
 
-VOID Before(int dwFlags, int dwBytes)
-{
-    std::cout<< "Before: " << "(" << dwFlags << ", " << dwBytes << ")" << std::endl;
-}
- 
+/*
 VOID Image(IMG img, VOID* v)
 {
     // Walk through the symbols in the symbol table.
@@ -416,17 +423,16 @@ VOID Image(IMG img, VOID* v)
         string undFuncName = PIN_UndecorateSymbolName(SYM_Name(sym), UNDECORATION_NAME_ONLY);
  
         //  Find the RtlAllocHeap() function.
-        if (undFuncName == "UpdateRegIndex")
+        if (undFuncName == "PIN_UpdateRegIndex")
         {
             RTN allocRtn = RTN_FindByAddress(IMG_LowAddress(img) + SYM_Value(sym));
  
             if (RTN_Valid(allocRtn))
             {
-                    // Instrument to print the input argument value and the return value.
+                // Instrument to print the input argument value and the return value.
                 RTN_Open(allocRtn);
 
-                RTN_InsertCall(allocRtn, IPOINT_BEFORE, (AFUNPTR)Before,
-                            IARG_FUNCARG_ENTRYPOINT_VALUE, 0, IARG_FUNCARG_ENTRYPOINT_VALUE, 1 , IARG_END);
+                RTN_InsertCall(allocRtn, IPOINT_BEFORE, AFUNPTR(Before), IARG_FUNCARG_ENTRYPOINT_VALUE, 0, IARG_END);
 
                 RTN_Close(allocRtn);
             }
@@ -434,6 +440,7 @@ VOID Image(IMG img, VOID* v)
   
     }
 }
+*/
 /*!
  * The main procedure of the tool.
  * This function is called when the application image is loaded but not yet started.
@@ -458,13 +465,13 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    IMG_AddInstrumentFunction(Image, 0);
+    // IMG_AddInstrumentFunction(Image, 0);
 
     // Register function to be called to register Routines
     RTN_AddInstrumentFunction(Routine, 0);
 
     // Register function to be called to instrument instructions
-    INS_AddInstrumentFunction(Instruction, 0);
+    // INS_AddInstrumentFunction(Instruction, 0);
 
     // Register function to be called when the application exits
     PIN_AddFiniFunction(Fini, 0);
