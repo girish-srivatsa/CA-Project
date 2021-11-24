@@ -8,6 +8,8 @@
 #define NUM_INSTR_DESTINATIONS_SPARC 4
 #define NUM_INSTR_DESTINATIONS 2
 #define NUM_INSTR_SOURCES 4
+#define NUM_GRAPH_NUMERIC_OPERANDS 2
+#define NUM_GRAPH_STRING_OPERANDS 1
 
 // special registers that help us identify branches
 #define REG_STACK_POINTER 6
@@ -35,6 +37,14 @@ public:
   uint8_t is_branch;
   uint8_t branch_taken;
 
+  unsigned char is_graph_instruction; // check for being a graph function
+  unsigned char graph_opcode; // checks which of the graph functions is called
+  // 0 - updateCurrDst - PIN_updateCurrDst
+  // 1 - updateRegBaseBound 
+  // 2 - registerGraphs
+  uint32_t graph_operands[NUM_GRAPH_NUMERIC_OPERANDS]; // store a list of graph operands
+  char* graph_name;
+
   uint8_t destination_registers[NUM_INSTR_DESTINATIONS]; // output registers
   uint8_t source_registers[NUM_INSTR_SOURCES];           // input registers
 
@@ -45,6 +55,13 @@ public:
     ip = 0;
     is_branch = 0;
     branch_taken = 0;
+
+    is_graph_instruction = 0;
+    graph_opcode = 0;
+    graph_name = NULL;
+    for(int i=0;i<NUM_GRAPH_NUMERIC_OPERANDS;i++){
+        graph_operands[i] = 0;
+    }
 
     for (uint32_t i = 0; i < NUM_INSTR_SOURCES; i++) {
       source_registers[i] = 0;
@@ -112,6 +129,14 @@ public:
       load_stall_flag, // Neelu: Adding to indicate a load stall and that stall
                        // begin cycle has been updated already
       btb_miss = 0;
+  
+  uint8_t is_graph_instruction; // check for being a graph function
+  uint8_t graph_opcode; // checks which of the graph functions is called
+  // 0 - updateCurrDst - PIN_updateCurrDst
+  // 1 - updateRegBaseBound 
+  // 2 - registerGraphs
+  uint32_t graph_operands[NUM_GRAPH_NUMERIC_OPERANDS]; // store a list of graph operands
+  char* graph_name;
 
   uint8_t branch_type;
   uint64_t branch_target;
@@ -189,6 +214,13 @@ public:
     mem_ready = 0;
     asid[0] = UINT8_MAX;
     asid[1] = UINT8_MAX;
+
+    is_graph_instruction = 0;
+    graph_opcode = 0;
+    graph_name = NULL;
+    for(int i=0;i<NUM_GRAPH_NUMERIC_OPERANDS;i++){
+      graph_operands[i] = 0;
+    }
 
     branch_type = NOT_BRANCH;
     branch_target = 0;

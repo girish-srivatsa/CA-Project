@@ -19,7 +19,7 @@ ostream &operator<<(ostream &os, const PACKET &packet) {
             << endl;
 };
 
-void CACHE::updateCurrDst(int32_t curr_dst){
+void CACHE::updateCurrDst(uint32_t curr_dst){
   curr_dst_vertex = curr_dst;
   return;
 }
@@ -30,9 +30,18 @@ void CACHE::updateRegBaseBound(uint32_t base, uint32_t bound){
   return;
 }
 
-void CACHE::registerGraphs(Graph* normal, bool is_pull){
-  matrix = normal;
-  this.is_pull = is_pull;
+void CACHE::registerGraphs(char* normal, bool is_pull){
+  int argc = 3; // "C++ executable" "-f" "graph filename"
+  char* argv[3];
+  argv[0] = (char*) "./temp";
+  argv[1] = (char*)"-f";
+  argv[2] = normal;
+  CLConvert cli(argc, argv, "converter");
+  cli.ParseArgs();
+  Builder b(cli);
+  Graph G = b.MakeGraph();
+  matrix = &G;
+  this->is_pull = is_pull;
   return;
 }
 

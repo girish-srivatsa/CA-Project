@@ -8,12 +8,6 @@
 #include <vector>
 #include <queue>
 // Gabps -- Helper files
-#include "benchmark.h" // defines Graph and WGraph
-#include "builder.h"
-#include "command_line.h"
-#include "graph.h"
-#include "reader.h"
-#include "writer.h"
 
 // PAGE
 extern uint32_t PAGE_TABLE_LATENCY, SWAP_LATENCY;
@@ -359,7 +353,7 @@ public:
   // GRAPH functions
   void updateCurrDst(uint32_t curr_dst),
        updateRegBaseBound(uint32_t base, uint32_t bound),
-       registerGraphs(Graph* normal, bool is_pull);
+       registerGraphs(char* normal, bool is_pull);
 
   // functions
   int add_rq(PACKET *packet), add_wq(PACKET *packet), add_pq(PACKET *packet);
