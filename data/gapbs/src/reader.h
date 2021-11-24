@@ -11,8 +11,7 @@
 #include <type_traits>
 
 #include "pvector.h"
-#include "util.h"
-
+#include "graph.h"
 
 /*
 GAP Benchmark Suite
@@ -220,8 +219,6 @@ class Reader {
   }
 
   EdgeList ReadFile(bool &needs_weights) {
-    Timer t;
-    t.Start();
     EdgeList el;
     std::string suffix = GetSuffix();
     std::ifstream file(filename_);
@@ -246,8 +243,6 @@ class Reader {
       std::exit(-3);
     }
     file.close();
-    t.Stop();
-    PrintTime("Read Time", t.Seconds());
     return el;
   }
 
@@ -274,8 +269,6 @@ class Reader {
       std::cout << "Couldn't open file " << filename_ << std::endl;
       std::exit(-6);
     }
-    Timer t;
-    t.Start();
     bool directed;
     SGOffset num_nodes, num_edges;
     DestID_ **index = nullptr, **inv_index = nullptr;
@@ -297,8 +290,6 @@ class Reader {
       inv_index = CSRGraph<NodeID_, DestID_>::GenIndex(offsets, inv_neighs);
     }
     file.close();
-    t.Stop();
-    PrintTime("Read Time", t.Seconds());
     if (directed)
       return CSRGraph<NodeID_, DestID_, invert>(num_nodes, index, neighs,
                                                 inv_index, inv_neighs);

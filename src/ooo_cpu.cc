@@ -193,28 +193,29 @@ void O3_CPU::read_from_trace() {
         arch_instr.is_branch = current_instr.is_branch;
         arch_instr.branch_taken = current_instr.branch_taken;
         
-        
-        arch_instr.is_graph_instruction = current_instr.is_graph_instruction;
-        arch_instr.graph_opcode = current_instr.graph_opcode;
-        for (int i = 0; i < NUM_GRAPH_NUMERIC_OPERANDS; ++i)
-          arch_instr.graph_operands[i] = (uint8_t)current_instr.graph_operands[i];
-        arch_instr.graph_name = current_instr.graph_name;
-        if(arch_instr.is_graph_instruction){
-          switch(arch_instr.graph_opcode){
-            case 0:
-              LLC->updateCurrDst(arch_instr.graph_operands[0]);
-              break;
-            case 1:
-              LLC -> updateRegBaseBound(arch_instr.graph_operands[0], arch_instr.graph_operands[1]);
-              break;
-            case 2:
-              LLC->registerGraphs(arch_instr.graph_name,arch_instr.graph_operands[0]);
-              break;
-            default:
-              assert(0); // Never Hit
+        #ifdef GRAPH_RUN
+          arch_instr.is_graph_instruction = current_instr.is_graph_instruction;
+          arch_instr.graph_opcode = current_instr.graph_opcode;
+          for (int i = 0; i < NUM_GRAPH_NUMERIC_OPERANDS; ++i)
+            arch_instr.graph_operands[i] = (uint8_t)current_instr.graph_operands[i];
+          arch_instr.graph_name = current_instr.graph_name;
+          if(arch_instr.is_graph_instruction>0){
+            cout<<arch_instr.is_graph_instruction<<" "<<arch_instr.graph_opcode<<" "<<arch_instr.graph_operands[0]<<endl;
+            switch(arch_instr.graph_opcode){
+              case 0:
+                LLC->updateCurrDst(arch_instr.graph_operands[0]);
+                break;
+              case 1:
+                LLC -> updateRegBaseBound(arch_instr.graph_operands[0], arch_instr.graph_operands[1]);
+                break;
+              case 2:
+                LLC->registerGraphs(arch_instr.graph_name,arch_instr.graph_operands[0]);
+                break;
+              default:
+                assert(0); // Never Hit
+            }
           }
-        }
-
+        #endif
 
         arch_instr.asid[0] = cpu;
         arch_instr.asid[1] = cpu;

@@ -8,6 +8,13 @@
 #include <vector>
 #include <queue>
 // Gabps -- Helper files
+#include "reader.h"
+typedef int32_t NodeID;
+typedef int32_t WeightT;
+
+typedef CSRGraph<NodeID> Graph;
+
+typedef Reader<NodeID, NodeID, WeightT, true> MyReader; // defines Graph and WGraph
 
 // PAGE
 extern uint32_t PAGE_TABLE_LATENCY, SWAP_LATENCY;

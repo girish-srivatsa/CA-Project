@@ -11,8 +11,6 @@
 #include <type_traits>
 
 #include "pvector.h"
-#include "util.h"
-
 
 /*
 GAP Benchmark Suite
@@ -24,6 +22,30 @@ Simple container for graph in CSR format
  - To make weighted, set DestID_ template type to NodeWeight
  - MakeInverse parameter controls whether graph stores its inverse
 */
+
+template <typename T_>
+class RangeIter {
+  T_ x_;
+ public:
+  explicit RangeIter(T_ x) : x_(x) {}
+  bool operator!=(RangeIter const& other) const { return x_ != other.x_; }
+  T_ const& operator*() const { return x_; }
+  RangeIter& operator++() {
+    ++x_;
+    return *this;
+  }
+};
+
+template <typename T_>
+class Range{
+  T_ from_;
+  T_ to_;
+ public:
+  explicit Range(T_ to) : from_(0), to_(to) {}
+  Range(T_ from, T_ to) : from_(from), to_(to) {}
+  RangeIter<T_> begin() const { return RangeIter<T_>(from_); }
+  RangeIter<T_> end() const { return RangeIter<T_>(to_); }
+};
 
 
 // Used to hold node & weight, with another node it makes a weighted edge
