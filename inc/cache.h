@@ -133,7 +133,7 @@ public:
   uint32_t reads_available_this_cycle;
   uint8_t cache_type;
 
-  Graph *matrix, *transpose; // Matrix and Transpose for reading and next-reference
+  Graph *matrix; // Matrix for reading and next-reference
   uint32_t irreg_data_base, irreg_data_bound; // Registers
   uint32_t curr_dst_vertex; // Current access
   bool is_pull; // Kernel Identification
@@ -359,7 +359,7 @@ public:
   // GRAPH functions
   void updateCurrDst(uint32_t curr_dst),
        updateRegBaseBound(uint32_t base, uint32_t bound),
-       registerGraphs(Graph* normal, Graph* inverted, bool is_pull);
+       registerGraphs(Graph* normal, bool is_pull);
 
   // functions
   int add_rq(PACKET *packet), add_wq(PACKET *packet), add_pq(PACKET *packet);

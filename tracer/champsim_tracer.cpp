@@ -15,12 +15,22 @@ using namespace std;
 
 #define NUM_INSTR_DESTINATIONS 2
 #define NUM_INSTR_SOURCES 4
+#define NUM_GRAPH_NUMERIC_OPERANDS 2
+#define NUM_GRAPH_STRING_OPERANDS 1
 
 typedef struct trace_instr_format {
     unsigned long long int ip;  // instruction pointer (program counter) value
 
     unsigned char is_branch;    // is this branch
     unsigned char branch_taken; // if so, is this taken
+
+    unsigned char is_graph_instruction; // check for being a graph function
+    unsigned char graph_opcode; // checks which of the graph functions is called
+    // 0 - updateCurrDst - PIN_updateCurrDst
+    // 1 - updateRegBaseBound 
+    // 2 - registerGraphs
+    uint32_t graph_operands[NUM_GRAPH_NUMERIC_OPERANDS]; // store a list of graph operands
+    char* graph_name;
 
     unsigned char destination_registers[NUM_INSTR_DESTINATIONS]; // output registers
     unsigned char source_registers[NUM_INSTR_SOURCES];           // input registers
@@ -108,6 +118,14 @@ void BeginInstruction(VOID *ip, UINT32 op_code, VOID *opstring)
 
     curr_instr.is_branch = 0;
     curr_instr.branch_taken = 0;
+    
+    
+    curr_instr.is_graph_instruction = 0;
+    curr_instr.graph_opcode = 0;
+    curr_instr.graph_name = NULL;
+    for(int i=0;i<NUM_GRAPH_NUMERIC_OPERANDS;i++){
+        curr_instr.graph_operands[i] = 0;
+    }
 
     for(int i=0; i<NUM_INSTR_DESTINATIONS; i++) 
     {
@@ -316,6 +334,33 @@ void MemoryWrite(VOID* addr, UINT32 index)
        }
        */
 }
+
+void PIN_updateCurrDst(uint32_t curr_dst){
+    // cout<<"PIN_updateCurrDst("<<curr_dst<<")"<<endl;
+    curr_instr.is_graph_instruction = 1;
+    curr_instr.graph_opcode = 0;
+    curr_instr.graph_operands[0] = curr_dst;
+    return;
+}
+
+
+void PIN_updateRegBaseBound(uint32_t base, uint32_t bound) {
+    // cout << "PIN_updateRegBaseBound( " << base << ", " << bound << ")\n";
+    curr_instr.is_graph_instruction = 1;
+    curr_instr.graph_opcode = 1;
+    curr_instr.graph_operands[0] = base;
+    curr_instr.graph_operands[1] = bound;
+    return;
+}
+
+void PIN_registerGraphs(char* name, uint32_t is_pull){
+    // cout<<"PIN_registerGraphs("<<name << ","<<is_pull <<")"<<endl;
+    curr_instr.is_graph_instruction = 1;
+    curr_instr.graph_opcode = 2;
+    curr_instr.graph_operands[0] = is_pull;
+    curr_instr.graph_name = name;
+    return;
+}
 // Test
 
 /* ===================================================================== */
@@ -338,21 +383,31 @@ void After(){
 VOID Instruction(INS ins, VOID *v)
 {
     // begin each instruction with this function
+
+    UINT32 opcode = INS_Opcode(ins);
+    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)BeginInstruction, IARG_INST_PTR, IARG_UINT32, opcode, IARG_END);
+
     if(INS_IsCall(ins)){
         if (INS_IsDirectControlFlow(ins))
         {
-            // RTN rtn = RTN_FindByAddress(INS_DirectControlFlowTargetAddress(ins));
+            RTN rtn = RTN_FindByAddress(INS_DirectControlFlowTargetAddress(ins));
+            std::string rtn_name = RTN_Name(rtn);
             // std::cout<<"happening "<<RTN_Name(rtn)<<" at "<<INS_DirectControlFlowTargetAddress(ins)<<std::endl;
-            // INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(Before), IARG_FUNCARG_CALLSITE_VALUE, 0,
-            //               IARG_END);
-        } else{
+            if(rtn_name.find("PIN_updateCurrDst")!=std::string::npos){
+                INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(PIN_updateCurrDst), IARG_FUNCARG_CALLSITE_VALUE, 0,
+                           IARG_END);
+            }
+            else if(rtn_name.find("PIN_registerGraphs")!=std::string::npos){
+                INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(PIN_registerGraphs), IARG_FUNCARG_CALLSITE_VALUE, 0 ,  IARG_FUNCARG_CALLSITE_VALUE, 1,
+                           IARG_END);
+            } else if(rtn_name.find("PIN_updateRegBaseBound")!=std::string::npos){
+                INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(PIN_updateRegBaseBound), IARG_FUNCARG_CALLSITE_VALUE, 0, IARG_FUNCARG_CALLSITE_VALUE, 1,
+                           IARG_END);
+            } 
             
         }
     }
 
-
-    UINT32 opcode = INS_Opcode(ins);
-    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)BeginInstruction, IARG_INST_PTR, IARG_UINT32, opcode, IARG_END);
 
     // instrument branch instructions
     if(INS_IsBranch(ins))
@@ -406,22 +461,22 @@ VOID Instruction(INS ins, VOID *v)
     INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)EndInstruction, IARG_END);
 }
 
-/*
 void Routine(RTN rtn, void* v)
 {
     std::string rtn_name = RTN_Name(rtn);
-    if(rtn_name.find("UpdateRegIndex")!=std::string::npos){
+    if(rtn_name.find("PIN_UpdateRegIndex")!=std::string::npos){
         // Instrument to print the input argument value and the return value.
         UpdateRegIndexAddress = RTN_Address(rtn);
-        std::cout<<"hit "<<UpdateRegIndexAddress<<std::endl;
-        RTN_Open(rtn);
+        // std::cout<<"hit "<<UpdateRegIndexAddress<<std::endl;
+        RTN_Replace(rtn,AFUNPTR(Before));
+        // RTN_Open(rtn);
 
-        RTN_InsertCall(rtn, IPOINT_BEFORE, AFUNPTR(Before), IARG_FUNCARG_ENTRYPOINT_VALUE, 0, IARG_END);
+        // RTN_InsertCall(rtn, IPOINT_BEFORE, AFUNPTR(Before), IARG_FUNCARG_ENTRYPOINT_VALUE, 0, IARG_END);
 
-        RTN_Close(rtn);
+        // RTN_Close(rtn);
     }
 }
-*/
+
 /*!
  * Print out analysis results.
  * This function is called when the application exits.
@@ -493,7 +548,7 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    IMG_AddInstrumentFunction(Image, 0);
+    // IMG_AddInstrumentFunction(Image, 0);
 
     // Register function to be called to register Routines
     // RTN_AddInstrumentFunction(Routine, 0);

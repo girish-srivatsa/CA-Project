@@ -30,9 +30,8 @@ void CACHE::updateRegBaseBound(uint32_t base, uint32_t bound){
   return;
 }
 
-void CACHE::registerGraphs(Graph* normal, Graph* inverted, bool is_pull){
+void CACHE::registerGraphs(Graph* normal, bool is_pull){
   matrix = normal;
-  transpose = inverted;
   this.is_pull = is_pull;
   return;
 }
