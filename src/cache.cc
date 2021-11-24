@@ -19,8 +19,22 @@ ostream &operator<<(ostream &os, const PACKET &packet) {
             << endl;
 };
 
-void CACHE::updateRegIndex(int32_t idx,int tid){
-  cout<<"idx: "<<idx<<endl;
+void CACHE::updateCurrDst(int32_t curr_dst){
+  curr_dst_vertex = curr_dst;
+  return;
+}
+
+void CACHE::updateRegBaseBound(uint32_t base, uint32_t bound){
+  irreg_data_base = base;
+  irreg_data_bound = bound;
+  return;
+}
+
+void CACHE::registerGraphs(Graph* normal, Graph* inverted, bool is_pull){
+  matrix = normal;
+  transpose = inverted;
+  this.is_pull = is_pull;
+  return;
 }
 
 void CACHE::handle_fill() {

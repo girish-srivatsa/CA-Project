@@ -37,6 +37,8 @@ UINT64 instrCount = 0;
 
 FILE* out;
 
+LOCALVAR ADDRINT UpdateRegIndexAddress = 0;
+
 bool output_file_closed = false;
 bool tracing_on = false;
 
@@ -150,7 +152,7 @@ void EndInstruction()
     }
 }
 
-void BranchOrNot(UINT32 taken)
+void BranchOrNot(UINT32 taken, ADDRINT Target)
 {
     //printf("[%d] ", taken);
 
@@ -159,6 +161,7 @@ void BranchOrNot(UINT32 taken)
     {
         curr_instr.branch_taken = 1;
     }
+    // std::cout<<"hurray "<<Target<<std::endl;
 }
 
 void RegRead(UINT32 i, UINT32 index)
@@ -313,21 +316,47 @@ void MemoryWrite(VOID* addr, UINT32 index)
        }
        */
 }
+// Test
 
 /* ===================================================================== */
 // Instrumentation callbacks
 /* ===================================================================== */
 
+void Before(int index){
+    std::string test="testing123";
+    std::cout<<test<<" "<<index<<std::endl;
+    fwrite(test.c_str(),test.size(),1,out);
+}
+
+void After(){
+    std::string test="testing123";
+    std::cout<<test<<std::endl;
+    fwrite(test.c_str(),test.size(),1,out);
+}
+
 // Is called for every instruction and instruments reads and writes
 VOID Instruction(INS ins, VOID *v)
 {
     // begin each instruction with this function
+    if(INS_IsCall(ins)){
+        if (INS_IsDirectControlFlow(ins))
+        {
+            // RTN rtn = RTN_FindByAddress(INS_DirectControlFlowTargetAddress(ins));
+            // std::cout<<"happening "<<RTN_Name(rtn)<<" at "<<INS_DirectControlFlowTargetAddress(ins)<<std::endl;
+            // INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(Before), IARG_FUNCARG_CALLSITE_VALUE, 0,
+            //               IARG_END);
+        } else{
+            
+        }
+    }
+
+
     UINT32 opcode = INS_Opcode(ins);
     INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)BeginInstruction, IARG_INST_PTR, IARG_UINT32, opcode, IARG_END);
 
     // instrument branch instructions
     if(INS_IsBranch(ins))
-        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)BranchOrNot, IARG_BRANCH_TAKEN, IARG_END);
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)BranchOrNot, IARG_BRANCH_TAKEN,IARG_BRANCH_TARGET_ADDR, IARG_END);
 
     // instrument register reads
     UINT32 readRegCount = INS_MaxNumRRegs(ins);
@@ -377,17 +406,14 @@ VOID Instruction(INS ins, VOID *v)
     INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)EndInstruction, IARG_END);
 }
 
-void Before(int index){
-    std::string test="testing123";
-    std::cout<<test<<" "<<index<<std::endl;
-    fwrite(test.c_str(),test.size(),1,out);
-}
-
+/*
 void Routine(RTN rtn, void* v)
 {
     std::string rtn_name = RTN_Name(rtn);
     if(rtn_name.find("UpdateRegIndex")!=std::string::npos){
         // Instrument to print the input argument value and the return value.
+        UpdateRegIndexAddress = RTN_Address(rtn);
+        std::cout<<"hit "<<UpdateRegIndexAddress<<std::endl;
         RTN_Open(rtn);
 
         RTN_InsertCall(rtn, IPOINT_BEFORE, AFUNPTR(Before), IARG_FUNCARG_ENTRYPOINT_VALUE, 0, IARG_END);
@@ -395,7 +421,7 @@ void Routine(RTN rtn, void* v)
         RTN_Close(rtn);
     }
 }
-
+*/
 /*!
  * Print out analysis results.
  * This function is called when the application exits.
@@ -413,7 +439,7 @@ VOID Fini(INT32 code, VOID *v)
     }
 }
 
-/*
+
 VOID Image(IMG img, VOID* v)
 {
     // Walk through the symbols in the symbol table.
@@ -426,7 +452,9 @@ VOID Image(IMG img, VOID* v)
         if (undFuncName == "PIN_UpdateRegIndex")
         {
             RTN allocRtn = RTN_FindByAddress(IMG_LowAddress(img) + SYM_Value(sym));
- 
+
+            UpdateRegIndexAddress = RTN_Address(allocRtn);
+            // std::cout<<"hit "<<UpdateRegIndexAddress<<std::endl;
             if (RTN_Valid(allocRtn))
             {
                 // Instrument to print the input argument value and the return value.
@@ -440,7 +468,7 @@ VOID Image(IMG img, VOID* v)
   
     }
 }
-*/
+
 /*!
  * The main procedure of the tool.
  * This function is called when the application image is loaded but not yet started.
@@ -465,13 +493,13 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    // IMG_AddInstrumentFunction(Image, 0);
+    IMG_AddInstrumentFunction(Image, 0);
 
     // Register function to be called to register Routines
-    RTN_AddInstrumentFunction(Routine, 0);
+    // RTN_AddInstrumentFunction(Routine, 0);
 
     // Register function to be called to instrument instructions
-    // INS_AddInstrumentFunction(Instruction, 0);
+    INS_AddInstrumentFunction(Instruction, 0);
 
     // Register function to be called when the application exits
     PIN_AddFiniFunction(Fini, 0);

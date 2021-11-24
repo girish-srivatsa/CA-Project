@@ -4,7 +4,7 @@ srcExt = cc
 srcDir = src branch replacement prefetcher
 objDir = obj
 binDir = bin
-inc = inc
+inc = inc data/gapbs/src
 
 debug = 1
 

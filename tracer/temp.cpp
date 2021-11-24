@@ -3,6 +3,8 @@ void PIN_UpdateRegIndex(int index){
 }
 
 int main(){
-	PIN_UpdateRegIndex(0);
+	for(int i=0;i<10;i++){
+		PIN_UpdateRegIndex(0);
+	}
 	return 0;
 }

@@ -7,6 +7,13 @@
 #include <unordered_map>
 #include <vector>
 #include <queue>
+// Gabps -- Helper files
+#include "benchmark.h" // defines Graph and WGraph
+#include "builder.h"
+#include "command_line.h"
+#include "graph.h"
+#include "reader.h"
+#include "writer.h"
 
 // PAGE
 extern uint32_t PAGE_TABLE_LATENCY, SWAP_LATENCY;
@@ -126,6 +133,11 @@ public:
   uint32_t reads_available_this_cycle;
   uint8_t cache_type;
 
+  Graph *matrix, *transpose; // Matrix and Transpose for reading and next-reference
+  uint32_t irreg_data_base, irreg_data_bound; // Registers
+  uint32_t curr_dst_vertex; // Current access
+  bool is_pull; // Kernel Identification
+
   // prefetch stats
   uint64_t pf_requested, pf_issued, pf_useful, pf_useless, pf_fill,
       pf_late, // Number of On-demand translation requests hit in TLB MSHR with
@@ -205,6 +217,9 @@ public:
         RQ_SIZE(v6), PQ_SIZE(v7), MSHR_SIZE(v8) {
 
     LATENCY = 0;
+    // Constructor for Graph Specific Values
+    irreg_data_base = irreg_data_bound = curr_dst_vertex = -1;
+    is_pull = false;
 
     // cache block
     block = new BLOCK *[NUM_SET];
@@ -340,6 +355,11 @@ public:
           delete[] block[i];
       delete[] block;
   };*/
+  
+  // GRAPH functions
+  void updateCurrDst(uint32_t curr_dst),
+       updateRegBaseBound(uint32_t base, uint32_t bound),
+       registerGraphs(Graph* normal, Graph* inverted, bool is_pull);
 
   // functions
   int add_rq(PACKET *packet), add_wq(PACKET *packet), add_pq(PACKET *packet);
@@ -528,7 +548,6 @@ public:
       lru_victim(uint32_t cpu, uint64_t instr_id, uint32_t set,
                  const BLOCK *current_set, uint64_t ip, uint64_t full_addr,
                  uint32_t type);
-    void updateRegIndex(int32_t idx,int id);
 };
 
 #endif

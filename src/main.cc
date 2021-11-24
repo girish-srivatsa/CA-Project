@@ -664,6 +664,12 @@ void finish_warmup() {
     ooo_cpu[i].L1D.LATENCY = L1D_LATENCY;
     ooo_cpu[i].L2C.LATENCY = L2C_LATENCY;
   }
+
+  // add LLC pointer to uncore for custom ops
+  for (uint32_t i = 0; i < NUM_CPUS; i++) {
+    ooo_cpu[i].LLC = &uncore.LLC;
+  }
+  
   uncore.LLC.LATENCY = LLC_LATENCY;
 }
 

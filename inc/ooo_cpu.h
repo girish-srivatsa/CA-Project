@@ -39,6 +39,8 @@ class O3_CPU {
 public:
   uint32_t cpu;
 
+  CACHE* LLC; 
+
   // trace
   FILE *trace_file;
   char trace_string[1024];
