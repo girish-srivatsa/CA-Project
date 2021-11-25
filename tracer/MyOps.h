@@ -7,7 +7,7 @@ void PIN_updateCurrDst(uint32_t curr_dst){
     return;
 }
 
-void PIN_updateRegBaseBound(uint32_t base, uint32_t bound) {
+void PIN_updateRegBaseBound(uint64_t base, uint64_t bound) {
     return;
 }
 

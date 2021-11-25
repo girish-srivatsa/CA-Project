@@ -17,6 +17,7 @@ using namespace std;
 #define NUM_INSTR_SOURCES 4
 #define NUM_GRAPH_NUMERIC_OPERANDS 2
 #define NUM_GRAPH_STRING_OPERANDS 1
+#define MAX_GRAPH_FILE_NAME 64
 
 typedef struct trace_instr_format {
     unsigned long long int ip;  // instruction pointer (program counter) value
@@ -29,8 +30,8 @@ typedef struct trace_instr_format {
     // 0 - updateCurrDst - PIN_updateCurrDst
     // 1 - updateRegBaseBound 
     // 2 - registerGraphs
-    uint32_t graph_operands[NUM_GRAPH_NUMERIC_OPERANDS]; // store a list of graph operands
-    char* graph_name;
+    uint64_t graph_operands[NUM_GRAPH_NUMERIC_OPERANDS]; // store a list of graph operands
+    char graph_name[MAX_GRAPH_FILE_NAME];
 
     unsigned char destination_registers[NUM_INSTR_DESTINATIONS]; // output registers
     unsigned char source_registers[NUM_INSTR_SOURCES];           // input registers
@@ -47,20 +48,10 @@ UINT64 instrCount = 0;
 
 FILE* out;
 
-LOCALVAR ADDRINT UpdateRegIndexAddress = 0;
-
 bool output_file_closed = false;
 bool tracing_on = false;
 
 trace_instr_format_t curr_instr;
-
-void updateRegIndex(int index)
-{
-    std::cout<<"hello_in"<<std::endl;
-    std::string trial = "hello-it works";
-    fwrite(trial.c_str(),trial.size(),1,out);
-}
-
 
 /* ===================================================================== */
 // Command line switches
@@ -122,7 +113,10 @@ void BeginInstruction(VOID *ip, UINT32 op_code, VOID *opstring)
     
     curr_instr.is_graph_instruction = 0;
     curr_instr.graph_opcode = 0;
-    curr_instr.graph_name = NULL;
+    for(int i=0;i<MAX_GRAPH_FILE_NAME;i++){
+        curr_instr.graph_name[i] = 0;
+    }
+
     for(int i=0;i<NUM_GRAPH_NUMERIC_OPERANDS;i++){
         curr_instr.graph_operands[i] = 0;
     }
@@ -153,6 +147,21 @@ void EndInstruction()
         if(instrCount <= (KnobTraceInstructions.Value()+KnobSkipInstructions.Value()))
         {
             // keep tracing
+            if(curr_instr.is_graph_instruction){
+                switch(curr_instr.graph_opcode){
+                    case 0:
+                    cout<<"PIN_updateCurrDst("<<curr_instr.graph_operands[0]<<")"<<endl;
+                    break;
+                    case 1:
+                    cout << "PIN_updateRegBaseBound( " << curr_instr.graph_operands[0] << ", " << curr_instr.graph_operands[1] << ")\n";
+                    break;
+                    case 2:
+                    cout<<"PIN_registerGraphs("<<curr_instr.graph_name << ","<<curr_instr.graph_operands[0] <<")"<<endl;
+                    break;
+                    default:
+                    assert(0);
+                }
+            }
             fwrite(&curr_instr, sizeof(trace_instr_format_t), 1, out);
         }
         else
@@ -336,7 +345,6 @@ void MemoryWrite(VOID* addr, UINT32 index)
 }
 
 void PIN_updateCurrDst(uint32_t curr_dst){
-    // cout<<"PIN_updateCurrDst("<<curr_dst<<")"<<endl;
     curr_instr.is_graph_instruction = 1;
     curr_instr.graph_opcode = 0;
     curr_instr.graph_operands[0] = curr_dst;
@@ -344,8 +352,7 @@ void PIN_updateCurrDst(uint32_t curr_dst){
 }
 
 
-void PIN_updateRegBaseBound(uint32_t base, uint32_t bound) {
-    // cout << "PIN_updateRegBaseBound( " << base << ", " << bound << ")\n";
+void PIN_updateRegBaseBound(uint64_t base, uint64_t bound) {
     curr_instr.is_graph_instruction = 1;
     curr_instr.graph_opcode = 1;
     curr_instr.graph_operands[0] = base;
@@ -354,11 +361,11 @@ void PIN_updateRegBaseBound(uint32_t base, uint32_t bound) {
 }
 
 void PIN_registerGraphs(char* name, uint32_t is_pull){
-    // cout<<"PIN_registerGraphs("<<name << ","<<is_pull <<")"<<endl;
+    cout<<sizeof(trace_instr_format_t);
     curr_instr.is_graph_instruction = 1;
     curr_instr.graph_opcode = 2;
     curr_instr.graph_operands[0] = is_pull;
-    curr_instr.graph_name = name;
+    strcpy(curr_instr.graph_name,name);
     return;
 }
 // Test
@@ -366,19 +373,13 @@ void PIN_registerGraphs(char* name, uint32_t is_pull){
 /* ===================================================================== */
 // Instrumentation callbacks
 /* ===================================================================== */
-
+/*
 void Before(int index){
     std::string test="testing123";
     std::cout<<test<<" "<<index<<std::endl;
     fwrite(test.c_str(),test.size(),1,out);
 }
-
-void After(){
-    std::string test="testing123";
-    std::cout<<test<<std::endl;
-    fwrite(test.c_str(),test.size(),1,out);
-}
-
+*/
 // Is called for every instruction and instruments reads and writes
 VOID Instruction(INS ins, VOID *v)
 {
@@ -460,7 +461,7 @@ VOID Instruction(INS ins, VOID *v)
     // finalize each instruction with this function
     INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)EndInstruction, IARG_END);
 }
-
+/*
 void Routine(RTN rtn, void* v)
 {
     std::string rtn_name = RTN_Name(rtn);
@@ -476,7 +477,7 @@ void Routine(RTN rtn, void* v)
         // RTN_Close(rtn);
     }
 }
-
+*/
 /*!
  * Print out analysis results.
  * This function is called when the application exits.
@@ -494,7 +495,7 @@ VOID Fini(INT32 code, VOID *v)
     }
 }
 
-
+/*
 VOID Image(IMG img, VOID* v)
 {
     // Walk through the symbols in the symbol table.
@@ -523,7 +524,7 @@ VOID Image(IMG img, VOID* v)
   
     }
 }
-
+*/
 /*!
  * The main procedure of the tool.
  * This function is called when the application image is loaded but not yet started.

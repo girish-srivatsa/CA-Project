@@ -26,7 +26,7 @@
 #define DRC_BYPASS
 //#define NO_CRC2_COMPILE
 
-// #define GRAPH_RUN
+#define GRAPH_RUN
 
 //@Rahul: PTW
 #define INS_PAGE_TABLE_WALKER

@@ -164,7 +164,7 @@ void O3_CPU::read_from_trace() {
       if (!fread(&trace_read_instr, instr_size, 1, trace_file)) {
         // reached end of file for this trace
         cout << "*** Reached end of trace for Core: " << cpu
-             << " Repeating trace: " << trace_string << endl;
+             << " Repeating trace: " << trace_string << "after: " << instr_unique_id << endl;
 
         // close the trace file and re-open it
         pclose(trace_file);
@@ -176,7 +176,6 @@ void O3_CPU::read_from_trace() {
           assert(0);
         }
       } else { // successfully read the trace
-
         if (instr_unique_id == 0) {
           current_instr = next_instr = trace_read_instr;
         } else {
@@ -198,18 +197,20 @@ void O3_CPU::read_from_trace() {
           arch_instr.graph_opcode = current_instr.graph_opcode;
           for (int i = 0; i < NUM_GRAPH_NUMERIC_OPERANDS; ++i)
             arch_instr.graph_operands[i] = (uint8_t)current_instr.graph_operands[i];
-          arch_instr.graph_name = current_instr.graph_name;
+          for(int i=0;i<MAX_GRAPH_FILE_NAME;i++){
+            arch_instr.graph_name[i] = current_instr.graph_name[i];
+          }
           if(arch_instr.is_graph_instruction>0){
-            cout<<arch_instr.is_graph_instruction<<" "<<arch_instr.graph_opcode<<" "<<arch_instr.graph_operands[0]<<endl;
+            cout<<"yes? "<<arch_instr.is_graph_instruction<<" opcode="<<arch_instr.graph_opcode<<" operand="<<arch_instr.graph_operands[0]<<endl;
             switch(arch_instr.graph_opcode){
               case 0:
-                LLC->updateCurrDst(arch_instr.graph_operands[0]);
+                uncore.LLC.updateCurrDst(arch_instr.graph_operands[0]);
                 break;
               case 1:
-                LLC -> updateRegBaseBound(arch_instr.graph_operands[0], arch_instr.graph_operands[1]);
+                uncore.LLC.updateRegBaseBound(arch_instr.graph_operands[0], arch_instr.graph_operands[1]);
                 break;
               case 2:
-                LLC->registerGraphs(arch_instr.graph_name,arch_instr.graph_operands[0]);
+                uncore.LLC.registerGraphs(arch_instr.graph_name,arch_instr.graph_operands[0]);
                 break;
               default:
                 assert(0); // Never Hit

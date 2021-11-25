@@ -25,6 +25,7 @@
 #define BRANCH_INDIRECT_CALL 5
 #define BRANCH_RETURN 6
 #define BRANCH_OTHER 7
+#define MAX_GRAPH_FILE_NAME 64
 
 #include "set.h"
 
@@ -43,8 +44,8 @@ public:
   // 0 - updateCurrDst - PIN_updateCurrDst
   // 1 - updateRegBaseBound 
   // 2 - registerGraphs
-  uint32_t graph_operands[NUM_GRAPH_NUMERIC_OPERANDS]; // store a list of graph operands
-  char* graph_name;
+  uint64_t graph_operands[NUM_GRAPH_NUMERIC_OPERANDS]; // store a list of graph operands
+  char graph_name[MAX_GRAPH_FILE_NAME];
   #endif
 
   uint8_t destination_registers[NUM_INSTR_DESTINATIONS]; // output registers
@@ -60,9 +61,11 @@ public:
     #ifdef GRAPH_RUN
     is_graph_instruction = 0;
     graph_opcode = 0;
-    graph_name = NULL;
     for(int i=0;i<NUM_GRAPH_NUMERIC_OPERANDS;i++){
         graph_operands[i] = 0;
+    }
+    for(int i=0;i<MAX_GRAPH_FILE_NAME;i++){
+        graph_name[i] = 0;
     }
     #endif
     for (uint32_t i = 0; i < NUM_INSTR_SOURCES; i++) {
@@ -137,8 +140,8 @@ public:
   // 0 - updateCurrDst - PIN_updateCurrDst
   // 1 - updateRegBaseBound 
   // 2 - registerGraphs
-  uint32_t graph_operands[NUM_GRAPH_NUMERIC_OPERANDS]; // store a list of graph operands
-  char* graph_name;
+  uint64_t graph_operands[NUM_GRAPH_NUMERIC_OPERANDS]; // store a list of graph operands
+  char graph_name[MAX_GRAPH_FILE_NAME];
   #endif
   uint8_t branch_type;
   uint64_t branch_target;
@@ -220,9 +223,11 @@ public:
     #ifdef GRAPH_RUN
     is_graph_instruction = 0;
     graph_opcode = 0;
-    graph_name = NULL;
     for(int i=0;i<NUM_GRAPH_NUMERIC_OPERANDS;i++){
       graph_operands[i] = 0;
+    }
+    for(int i=0;i<MAX_GRAPH_FILE_NAME;i++){
+        graph_name[i] = 0;
     }
     #endif
 

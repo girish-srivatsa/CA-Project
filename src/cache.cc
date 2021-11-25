@@ -20,22 +20,25 @@ ostream &operator<<(ostream &os, const PACKET &packet) {
 };
 
 void CACHE::updateCurrDst(uint32_t curr_dst){
-  this->curr_dst_vertex = curr_dst;
+  cout<<"updateCurrDst("<<curr_dst<<")"<<endl;
+  curr_dst_vertex = curr_dst;
   return;
 }
 
-void CACHE::updateRegBaseBound(uint32_t base, uint32_t bound){
+void CACHE::updateRegBaseBound(uint64_t base, uint64_t bound){
+  cout << "PIN_updateRegBaseBound( " << base << ", " << bound << ")\n";
   irreg_data_base = base;
   irreg_data_bound = bound;
   return;
 }
 
-void CACHE::registerGraphs(char* normal, bool is_pull){
+void CACHE::registerGraphs(char* normal, bool kernel){
+  cout<<"PIN_registerGraphs("<<normal << ","<<kernel <<")"<<endl;
   string name(normal);
   MyReader r(name);
-  Graph G = r.ReadSerializedGraph();
-  matrix = &G;
-  this->is_pull = is_pull;
+  Graph G = r.ReadSerializedGraph(); 
+  uncore.LLC.matrix = &G;
+  is_pull = kernel;
   return;
 }
 
