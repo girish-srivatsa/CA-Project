@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string>
+#include <random>
 
 using namespace std;
 
@@ -25,8 +26,8 @@ typedef struct trace_instr_format {
     unsigned char is_branch;    // is this branch
     unsigned char branch_taken; // if so, is this taken
 
-    unsigned char is_graph_instruction; // check for being a graph function
-    unsigned char graph_opcode; // checks which of the graph functions is called
+    uint8_t is_graph_instruction; // check for being a graph function
+    uint8_t graph_opcode; // checks which of the graph functions is called
     // 0 - updateCurrDst - PIN_updateCurrDst
     // 1 - updateRegBaseBound 
     // 2 - registerGraphs
@@ -45,11 +46,13 @@ typedef struct trace_instr_format {
 /* ================================================================== */
 
 UINT64 instrCount = 0;
+UINT64 graph_count = 0;
 
 FILE* out;
 
 bool output_file_closed = false;
 bool tracing_on = false;
+
 
 trace_instr_format_t curr_instr;
 
@@ -147,7 +150,8 @@ void EndInstruction()
         if(instrCount <= (KnobTraceInstructions.Value()+KnobSkipInstructions.Value()))
         {
             // keep tracing
-            if(curr_instr.is_graph_instruction){
+
+            if(curr_instr.is_graph_instruction && (graph_count%100==0)){
                 switch(curr_instr.graph_opcode){
                     case 0:
                     cout<<"PIN_updateCurrDst("<<curr_instr.graph_operands[0]<<")"<<endl;
@@ -161,6 +165,10 @@ void EndInstruction()
                     default:
                     assert(0);
                 }
+            }
+            if(curr_instr.is_graph_instruction){
+                graph_count++;
+                cout<<"graph_count= "<<graph_count<<endl;
             }
             fwrite(&curr_instr, sizeof(trace_instr_format_t), 1, out);
         }
@@ -361,7 +369,6 @@ void PIN_updateRegBaseBound(uint64_t base, uint64_t bound) {
 }
 
 void PIN_registerGraphs(char* name, uint32_t is_pull){
-    cout<<sizeof(trace_instr_format_t);
     curr_instr.is_graph_instruction = 1;
     curr_instr.graph_opcode = 2;
     curr_instr.graph_operands[0] = is_pull;

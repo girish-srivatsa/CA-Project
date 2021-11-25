@@ -201,7 +201,7 @@ void O3_CPU::read_from_trace() {
             arch_instr.graph_name[i] = current_instr.graph_name[i];
           }
           if(arch_instr.is_graph_instruction>0){
-            cout<<"yes? "<<arch_instr.is_graph_instruction<<" opcode="<<arch_instr.graph_opcode<<" operand="<<arch_instr.graph_operands[0]<<endl;
+            // cout<<"yes? "<<+arch_instr.is_graph_instruction<<" opcode="<<+arch_instr.graph_opcode<<" operand="<<arch_instr.graph_operands[0]<<endl;
             switch(arch_instr.graph_opcode){
               case 0:
                 uncore.LLC.updateCurrDst(arch_instr.graph_operands[0]);

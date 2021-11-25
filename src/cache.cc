@@ -4,8 +4,10 @@
 #include "uncore.h"
 
 #include <vector>
-
 #include <iterator>
+random_device rand_dev;
+mt19937 generator(rand_dev());
+uniform_int_distribution<int> distribution{0, 1000000};
 
 ostream &operator<<(ostream &os, const PACKET &packet) {
   return os << " cpu: " << packet.cpu << " instr_id: " << packet.instr_id
@@ -20,13 +22,14 @@ ostream &operator<<(ostream &os, const PACKET &packet) {
 };
 
 void CACHE::updateCurrDst(uint32_t curr_dst){
-  cout<<"updateCurrDst("<<curr_dst<<")"<<endl;
+  if (distribution(generator) <= 10)
+    cout<<"updateCurrDst("<<curr_dst<<")"<<endl;
   curr_dst_vertex = curr_dst;
   return;
 }
 
 void CACHE::updateRegBaseBound(uint64_t base, uint64_t bound){
-  cout << "PIN_updateRegBaseBound( " << base << ", " << bound << ")\n";
+  if(distribution(generator) <= 10) cout << "PIN_updateRegBaseBound( " << base << ", " << bound << ")\n";
   irreg_data_base = base;
   irreg_data_bound = bound;
   return;

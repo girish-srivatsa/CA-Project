@@ -18,7 +18,8 @@ typedef Reader<NodeID, NodeID, WeightT, true> MyReader; // defines Graph and WGr
 // O(|C|+|C|^2)
 
 void BFSKernel(Graph &g, NodeID source, vector<bool> &bmap){
-  pvector<int> depth(g.num_nodes(), -1);
+  vector<int> depth(g.num_nodes(), -1);
+  PIN_updateRegBaseBound((uint64_t)&depth.front(),(uint64_t)&depth.back()+sizeof(int));
   depth[source] = 0;
   vector<NodeID> to_visit;
   to_visit.reserve(g.num_nodes());
@@ -38,11 +39,10 @@ void BFSKernel(Graph &g, NodeID source, vector<bool> &bmap){
 }
 
 int main(){
-    MyReader r("test_g10_k3.sg");
-    PIN_registerGraphs("test_g10_k3.sg",false);
+    MyReader r("test_g20_k2.sg");
     Graph g = r.ReadSerializedGraph();
-    PIN_updateRegBaseBound((uint64_t)&g,(uint64_t)&g+sizeof(g));
     vector<bool> bmap(g.num_nodes(), false);
+    PIN_registerGraphs("test_g20_k2.sg",false);
     for (NodeID source = 0; source < g.num_nodes(); ++source) {
         if (!bmap[source]) BFSKernel(g, source, bmap);
     }

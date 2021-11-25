@@ -39,8 +39,8 @@ public:
   uint8_t branch_taken;
 
   #ifdef GRAPH_RUN
-  unsigned char is_graph_instruction; // check for being a graph function
-  unsigned char graph_opcode; // checks which of the graph functions is called
+  uint8_t is_graph_instruction; // check for being a graph function
+  uint8_t graph_opcode; // checks which of the graph functions is called
   // 0 - updateCurrDst - PIN_updateCurrDst
   // 1 - updateRegBaseBound 
   // 2 - registerGraphs
