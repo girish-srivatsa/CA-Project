@@ -134,9 +134,9 @@ public:
   uint32_t reads_available_this_cycle;
   uint8_t cache_type;
 
-  Graph* matrix; // Matrix for reading and next-reference
-  uint64_t irreg_data_base, irreg_data_bound; // Registers
-  uint32_t curr_dst_vertex; // Current access
+  Graph matrix; // Matrix for reading and next-reference
+  int64_t irreg_data_base, irreg_data_bound; // Registers
+  int64_t curr_dst_vertex; // Current access
   bool is_pull; // Kernel Identification
 
   // prefetch stats
@@ -219,8 +219,7 @@ public:
 
     LATENCY = 0;
     // Constructor for Graph Specific Values
-    matrix = (Graph*)malloc(sizeof(Graph));
-    irreg_data_base = irreg_data_bound = curr_dst_vertex = -1;
+    irreg_data_base = irreg_data_bound = curr_dst_vertex = (int64_t)(-1);
     is_pull = false;
 
     // cache block
@@ -359,8 +358,8 @@ public:
   };*/
   
   // GRAPH functions
-  void updateCurrDst(uint32_t curr_dst),
-       updateRegBaseBound(uint64_t base, uint64_t bound),
+  void updateCurrDst(int64_t curr_dst),
+       updateRegBaseBound(int64_t base, int64_t bound),
        registerGraphs(char* normal, bool kernel);
 
   // functions

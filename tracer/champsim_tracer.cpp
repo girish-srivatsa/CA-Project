@@ -151,7 +151,7 @@ void EndInstruction()
         {
             // keep tracing
 
-            if(curr_instr.is_graph_instruction && (graph_count%100==0)){
+            if(curr_instr.is_graph_instruction){
                 switch(curr_instr.graph_opcode){
                     case 0:
                     cout<<"PIN_updateCurrDst("<<curr_instr.graph_operands[0]<<")"<<endl;
@@ -392,81 +392,82 @@ VOID Instruction(INS ins, VOID *v)
 {
     // begin each instruction with this function
 
-    UINT32 opcode = INS_Opcode(ins);
-    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)BeginInstruction, IARG_INST_PTR, IARG_UINT32, opcode, IARG_END);
 
-    if(INS_IsCall(ins)){
-        if (INS_IsDirectControlFlow(ins))
-        {
-            RTN rtn = RTN_FindByAddress(INS_DirectControlFlowTargetAddress(ins));
-            std::string rtn_name = RTN_Name(rtn);
-            // std::cout<<"happening "<<RTN_Name(rtn)<<" at "<<INS_DirectControlFlowTargetAddress(ins)<<std::endl;
-            if(rtn_name.find("PIN_updateCurrDst")!=std::string::npos){
-                INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(PIN_updateCurrDst), IARG_FUNCARG_CALLSITE_VALUE, 0,
-                           IARG_END);
+        UINT32 opcode = INS_Opcode(ins);
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)BeginInstruction, IARG_INST_PTR, IARG_UINT32, opcode, IARG_END);
+
+        if(INS_IsCall(ins)){
+            if (INS_IsDirectControlFlow(ins))
+            {
+                RTN rtn = RTN_FindByAddress(INS_DirectControlFlowTargetAddress(ins));
+                std::string rtn_name = RTN_Name(rtn);
+                // std::cout<<"happening "<<RTN_Name(rtn)<<" at "<<INS_DirectControlFlowTargetAddress(ins)<<std::endl;
+                if(rtn_name.find("PIN_updateCurrDst")!=std::string::npos){
+                    INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(PIN_updateCurrDst), IARG_FUNCARG_CALLSITE_VALUE, 0,
+                            IARG_END);
+                }
+                else if(rtn_name.find("PIN_registerGraphs")!=std::string::npos){
+                    INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(PIN_registerGraphs), IARG_FUNCARG_CALLSITE_VALUE, 0 ,  IARG_FUNCARG_CALLSITE_VALUE, 1,
+                            IARG_END);
+                } else if(rtn_name.find("PIN_updateRegBaseBound")!=std::string::npos){
+                    INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(PIN_updateRegBaseBound), IARG_FUNCARG_CALLSITE_VALUE, 0, IARG_FUNCARG_CALLSITE_VALUE, 1,
+                            IARG_END);
+                } 
+                
             }
-            else if(rtn_name.find("PIN_registerGraphs")!=std::string::npos){
-                INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(PIN_registerGraphs), IARG_FUNCARG_CALLSITE_VALUE, 0 ,  IARG_FUNCARG_CALLSITE_VALUE, 1,
-                           IARG_END);
-            } else if(rtn_name.find("PIN_updateRegBaseBound")!=std::string::npos){
-                INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(PIN_updateRegBaseBound), IARG_FUNCARG_CALLSITE_VALUE, 0, IARG_FUNCARG_CALLSITE_VALUE, 1,
-                           IARG_END);
-            } 
-            
         }
-    }
 
 
-    // instrument branch instructions
-    if(INS_IsBranch(ins))
-        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)BranchOrNot, IARG_BRANCH_TAKEN,IARG_BRANCH_TARGET_ADDR, IARG_END);
+        // instrument branch instructions
+        if(INS_IsBranch(ins))
+            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)BranchOrNot, IARG_BRANCH_TAKEN,IARG_BRANCH_TARGET_ADDR, IARG_END);
 
-    // instrument register reads
-    UINT32 readRegCount = INS_MaxNumRRegs(ins);
-    for(UINT32 i=0; i<readRegCount; i++) 
-    {
-        UINT32 regNum = INS_RegR(ins, i);
-
-        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RegRead,
-                IARG_UINT32, regNum, IARG_UINT32, i,
-                IARG_END);
-    }
-
-    // instrument register writes
-    UINT32 writeRegCount = INS_MaxNumWRegs(ins);
-    for(UINT32 i=0; i<writeRegCount; i++) 
-    {
-        UINT32 regNum = INS_RegW(ins, i);
-
-        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RegWrite,
-                IARG_UINT32, regNum, IARG_UINT32, i,
-                IARG_END);
-    }
-
-    // instrument memory reads and writes
-    UINT32 memOperands = INS_MemoryOperandCount(ins);
-
-    // Iterate over each memory operand of the instruction.
-    for (UINT32 memOp = 0; memOp < memOperands; memOp++) 
-    {
-        if (INS_MemoryOperandIsRead(ins, memOp)) 
+        // instrument register reads
+        UINT32 readRegCount = INS_MaxNumRRegs(ins);
+        for(UINT32 i=0; i<readRegCount; i++) 
         {
-            UINT32 read_size = INS_MemoryReadSize(ins);
+            UINT32 regNum = INS_RegR(ins, i);
 
-            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)MemoryRead,
-                    IARG_MEMORYOP_EA, memOp, IARG_UINT32, memOp, IARG_UINT32, read_size,
+            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RegRead,
+                    IARG_UINT32, regNum, IARG_UINT32, i,
                     IARG_END);
         }
-        if (INS_MemoryOperandIsWritten(ins, memOp)) 
+
+        // instrument register writes
+        UINT32 writeRegCount = INS_MaxNumWRegs(ins);
+        for(UINT32 i=0; i<writeRegCount; i++) 
         {
-            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)MemoryWrite,
-                    IARG_MEMORYOP_EA, memOp, IARG_UINT32, memOp,
+            UINT32 regNum = INS_RegW(ins, i);
+
+            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RegWrite,
+                    IARG_UINT32, regNum, IARG_UINT32, i,
                     IARG_END);
         }
-    }
 
-    // finalize each instruction with this function
-    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)EndInstruction, IARG_END);
+        // instrument memory reads and writes
+        UINT32 memOperands = INS_MemoryOperandCount(ins);
+
+        // Iterate over each memory operand of the instruction.
+        for (UINT32 memOp = 0; memOp < memOperands; memOp++) 
+        {
+            if (INS_MemoryOperandIsRead(ins, memOp)) 
+            {
+                UINT32 read_size = INS_MemoryReadSize(ins);
+
+                INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)MemoryRead,
+                        IARG_MEMORYOP_EA, memOp, IARG_UINT32, memOp, IARG_UINT32, read_size,
+                        IARG_END);
+            }
+            if (INS_MemoryOperandIsWritten(ins, memOp)) 
+            {
+                INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)MemoryWrite,
+                        IARG_MEMORYOP_EA, memOp, IARG_UINT32, memOp,
+                        IARG_END);
+            }
+        }
+
+        // finalize each instruction with this function
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)EndInstruction, IARG_END);
 }
 /*
 void Routine(RTN rtn, void* v)
@@ -548,8 +549,20 @@ int main(int argc, char *argv[])
         return Usage();
 
     const char* fileName = KnobOutputFile.Value().c_str();
+    char* last_dot = strrchr(fileName,'.');
 
-    out = fopen(fileName, "ab");
+    if(fileName[last_dot-fileName+1] == 'g'){ // Direct compressed write for memory issues
+        char cmd[1024];
+        sprintf(cmd,"gzip > %s",fileName);
+        out = popen(cmd,"ab");
+    } else if(fileName[last_dot-fileName+1] == 'x'){
+        char cmd[1024];
+        sprintf(cmd,"xz -0 > %s",fileName);
+        out = popen(cmd,"ab");
+    } else {
+        out = fopen(fileName, "ab");
+    }
+
     if (!out) 
     {
         cout << "Couldn't open output trace file. Exiting." << endl;

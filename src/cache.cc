@@ -21,14 +21,14 @@ ostream &operator<<(ostream &os, const PACKET &packet) {
             << endl;
 };
 
-void CACHE::updateCurrDst(uint32_t curr_dst){
+void CACHE::updateCurrDst(int64_t curr_dst){
   if (distribution(generator) <= 10)
     cout<<"updateCurrDst("<<curr_dst<<")"<<endl;
   curr_dst_vertex = curr_dst;
   return;
 }
 
-void CACHE::updateRegBaseBound(uint64_t base, uint64_t bound){
+void CACHE::updateRegBaseBound(int64_t base, int64_t bound){
   if(distribution(generator) <= 10) cout << "PIN_updateRegBaseBound( " << base << ", " << bound << ")\n";
   irreg_data_base = base;
   irreg_data_bound = bound;
@@ -39,8 +39,8 @@ void CACHE::registerGraphs(char* normal, bool kernel){
   cout<<"PIN_registerGraphs("<<normal << ","<<kernel <<")"<<endl;
   string name(normal);
   MyReader r(name);
-  Graph G = r.ReadSerializedGraph(); 
-  uncore.LLC.matrix = &G;
+  uncore.LLC.matrix = r.ReadSerializedGraph(); 
+  cout<<"Graphh Number of Nodes: "<<uncore.LLC.matrix.num_nodes()<<endl;
   is_pull = kernel;
   return;
 }

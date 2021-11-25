@@ -204,10 +204,10 @@ void O3_CPU::read_from_trace() {
             // cout<<"yes? "<<+arch_instr.is_graph_instruction<<" opcode="<<+arch_instr.graph_opcode<<" operand="<<arch_instr.graph_operands[0]<<endl;
             switch(arch_instr.graph_opcode){
               case 0:
-                uncore.LLC.updateCurrDst(arch_instr.graph_operands[0]);
+                uncore.LLC.updateCurrDst((int64_t)arch_instr.graph_operands[0]);
                 break;
               case 1:
-                uncore.LLC.updateRegBaseBound(arch_instr.graph_operands[0], arch_instr.graph_operands[1]);
+                uncore.LLC.updateRegBaseBound((int64_t)arch_instr.graph_operands[0], (int64_t)arch_instr.graph_operands[1]);
                 break;
               case 2:
                 uncore.LLC.registerGraphs(arch_instr.graph_name,arch_instr.graph_operands[0]);
