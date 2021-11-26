@@ -39,14 +39,15 @@ void PullKernel(Graph &g, vector<int> &srcData, vector<int> &dstData) {
     PIN_updateCurrDst(dst);
     for(auto src : g.in_neigh(dst)) {
       dstData[dst] += srcData[src];
+      // cout<<"ADDR: "<<((uint64_t)&srcData[src]-(uint64_t)&srcData.front()+94842583265424)<<endl;
     }
   }
 }
 
 int main(){
-    MyReader r("test_g15_k2.sg");
+    MyReader r("test_g18_k4.sg");
     Graph g = r.ReadSerializedGraph();
-    PIN_registerGraphs("test_g15_k2.sg",true);
+    PIN_registerGraphs("test_g18_k4.sg",true);
     vector<int> srcData(g.num_nodes(), 1);
     vector<int> dstData(g.num_nodes(), 0);
     PIN_updateRegBaseBound((uint64_t)&srcData.front(),(uint64_t)&srcData.back()+sizeof(int));

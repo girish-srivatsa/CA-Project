@@ -1688,6 +1688,7 @@ int main(int argc, char **argv) {
 
 #ifndef CRC2_COMPILE
   ooo_cpu[0].L1D.l1d_replacement_final_stats();
+  ooo_cpu[0].L2C.l2c_replacement_final_stats();
   uncore.LLC.llc_replacement_final_stats();
   print_dram_stats();
   print_branch_stats();

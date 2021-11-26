@@ -200,12 +200,15 @@ uint32_t CACHE::llc_find_victim(uint32_t cpu, uint64_t instr_id, uint32_t set,
             if(!current_set[way].valid || !current_set[way].used){
                 return way;
             }
+        }
+        for(int way=0;way<LLC_WAY;way++){
             uint64_t block_va = pa_to_va(current_set[way].address << LOG2_BLOCK_SIZE);
             if( (block_va < uncore.LLC.irreg_data_base) || (block_va >= uncore.LLC.irreg_data_bound)){
                 return way;
             }
+        }
+        for(int way=0;way<LLC_WAY;way++){
             uint64_t block_idx = (block_va - uncore.LLC.irreg_data_base) / sizeof(int);
-            
             for(uint64_t vertex=0;vertex<numVertices;vertex++){
                 uint64_t word_idx = block_idx+vertex;
                 uint64_t temp_reference;

@@ -122,7 +122,6 @@ extern uint32_t PAGE_TABLE_LATENCY, SWAP_LATENCY;
 
 class CACHE : public MEMORY {
 public:
-  int32_t regIdx;
   uint32_t cpu;
   const string NAME;
   const uint32_t NUM_SET, NUM_WAY, NUM_LINE, WQ_SIZE, RQ_SIZE, PQ_SIZE,

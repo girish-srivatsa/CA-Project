@@ -56,6 +56,7 @@ bool tracing_on = false;
 
 
 trace_instr_format_t curr_instr;
+uint64_t base_addr=0,bound_addr=0;
 
 /* ===================================================================== */
 // Command line switches
@@ -321,6 +322,11 @@ void MemoryRead(VOID* addr, UINT32 index, UINT32 read_size)
             }
         }
     }
+    if(base_addr>0){
+        if(((uint64_t)addr>=base_addr) && ((uint64_t)addr<bound_addr)){
+            // cout<<"ACCESS: "<<(uint64_t)addr<<endl;
+        }
+    }
     curr_instr.source_registers[NUM_INSTR_SOURCES-1] = (unsigned char)GRAPH_REGISTER;
 }
 
@@ -373,6 +379,8 @@ void PIN_updateRegBaseBound(uint64_t base, uint64_t bound) {
     curr_instr.graph_opcode = 1;
     curr_instr.graph_operands[0] = base;
     curr_instr.graph_operands[1] = bound;
+    base_addr = base;
+    bound_addr = bound;
     return;
 }
 

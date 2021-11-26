@@ -288,7 +288,18 @@ void O3_CPU::read_from_trace() {
         arch_instr.num_mem_ops = num_mem_ops;
         if (num_mem_ops > 0)
           arch_instr.is_memory = 1;
-
+        /*
+        if(arch_instr.is_memory && (uncore.LLC.irreg_data_base>0)){
+          for(int i=0;i<NUM_INSTR_SOURCES;i++){
+            if(arch_instr.source_memory[i]){
+              if((arch_instr.source_memory[i] >= (uint64_t)uncore.LLC.irreg_data_base) && 
+                  (arch_instr.source_memory[i]<(uint64_t)uncore.LLC.irreg_data_bound)){
+                    cout<<"ACCESS: "<<arch_instr.source_memory[i]<<endl;
+                  }
+            }
+          }
+        }
+        */
         // determine what kind of branch this is, if any
         if (!reads_sp && !reads_flags && writes_ip && !reads_other) {
           // direct jump
@@ -1490,6 +1501,11 @@ void O3_CPU::operate_lsq() {
     if (RTL0[RTL0_head] < LQ_SIZE) {
       uint32_t lq_index = RTL0[RTL0_head];
       if (LQ.entry[lq_index].event_cycle <= current_core_cycle[cpu]) {
+        
+        // if((LQ.entry[lq_index].virtual_address < (uint64_t)uncore.LLC.irreg_data_bound) && 
+        // (LQ.entry[lq_index].virtual_address>=(uint64_t)uncore.LLC.irreg_data_base)){
+          // cout<<"ADDED to RQ: "<<LQ.entry[lq_index].virtual_address<<endl;
+        // }
 
         int rq_index = execute_load(LQ.entry[lq_index].rob_index, lq_index,
                                     LQ.entry[lq_index].data_index);
