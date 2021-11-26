@@ -1,0 +1,192 @@
+//
+// From Data Prefetching Championship Simulator 2
+// Seth Pugsley, seth.h.pugsley@intel.com
+//
+
+/*
+
+  This file describes an Instruction Pointer-based (Program Counter-based)
+  stride prefetcher. The prefetcher detects stride patterns coming from the same
+  IP, and then prefetches additional cache lines.
+
+  Prefetches are issued into the L2 or LLC depending on L2 MSHR occupancy.
+
+ */
+
+#include "cache.h"
+
+#define IP_TRACKER_COUNT 1024
+#define PREFETCH_DEGREE 1
+
+#define LOG2_REGION_SIZE 16 // Neelu: 64 KB region, 4 bit stride will be there.
+
+uint64_t operated_times = 0, prefetches_made = 0, prefetches_dropped = 0;
+int stlb_warmup_flag = 0;
+
+class IP_TRACKER {
+public:
+  // the IP we're tracking
+  uint64_t ip;
+
+  // the last address accessed by this IP
+  uint64_t last_page;
+
+  // the stride between the last two addresses accessed by this IP
+  int64_t last_stride;
+
+  // use LRU to evict old IP trackers
+  uint32_t lru;
+
+  IP_TRACKER() {
+    ip = 0;
+    last_page = 0;
+    last_stride = 0;
+    lru = 0;
+  };
+};
+
+IP_TRACKER trackers[IP_TRACKER_COUNT];
+
+void CACHE::stlb_prefetcher_initialize() {
+  cout << "CPU " << cpu << " STLB IP-based stride prefetcher" << endl;
+  for (int i = 0; i < IP_TRACKER_COUNT; i++)
+    trackers[i].lru = i;
+}
+
+void CACHE::stlb_prefetcher_operate(uint64_t addr, uint64_t ip,
+                                    uint8_t cache_hit, uint8_t type,
+                                    uint64_t prefetch_id, uint8_t instruction,
+                                    uint64_t l1d_pref_accuracy,
+                                    uint32_t l2c_mpki) {
+
+  if (warmup_complete[cpu] && stlb_warmup_flag == 0) {
+    stlb_warmup_flag = 1;
+    operated_times = prefetches_made = prefetches_dropped = 0;
+  }
+
+  // Neelu: Only training on prefetches
+
+  if (type == PREFETCH) {
+    operated_times++;
+    // check for a tracker hit
+    uint64_t cl_addr = addr >> LOG2_BLOCK_SIZE;
+
+    uint64_t page = addr >> LOG2_PAGE_SIZE;
+
+    int index = -1;
+    for (index = 0; index < IP_TRACKER_COUNT; index++) {
+      if (trackers[index].ip == ip)
+        break;
+    }
+
+    // this is a new IP that doesn't have a tracker yet, so allocate one
+    if (index == IP_TRACKER_COUNT) {
+
+      for (index = 0; index < IP_TRACKER_COUNT; index++) {
+        if (trackers[index].lru == (IP_TRACKER_COUNT - 1))
+          break;
+      }
+
+      trackers[index].ip = ip;
+      trackers[index].last_page = page;
+      trackers[index].last_stride = 0;
+
+      // cout << "[IP_STRIDE] MISS index: " << index << " lru: " <<
+      // trackers[index].lru << " ip: " << hex << ip << " page: " << page << dec
+      // << endl;
+
+      for (int i = 0; i < IP_TRACKER_COUNT; i++) {
+        if (trackers[i].lru < trackers[index].lru)
+          trackers[i].lru++;
+      }
+      trackers[index].lru = 0;
+
+      // return metadata_in;
+    }
+
+    // sanity check
+    // at this point we should know a matching tracker index
+    if (index == -1)
+      assert(0);
+
+    // calculate the stride between the current address and the last address
+    // this bit appears overly complicated because we're calculating
+    // differences between unsigned address variables
+    int64_t stride = 0;
+    if (page > trackers[index].last_page)
+      stride = page - trackers[index].last_page;
+    else {
+      stride = trackers[index].last_page - page;
+      stride *= -1;
+    }
+
+    // cout << "[IP_STRIDE] HIT  index: " << index << " lru: " <<
+    // trackers[index].lru << " ip: " << hex << ip << " page: " << page << dec <<
+    // " stride: " << stride << endl;
+
+    // don't do anything if we somehow saw the same address twice in a row
+    if (stride == 0)
+      return; // metadata_in;
+
+    // only do any prefetching if there's a pattern of seeing the same
+    // stride more than once
+    if (stride == trackers[index].last_stride && l1d_pref_accuracy > 40 &&
+        l2c_mpki > 15) {
+
+      // do some prefetching
+      for (int i = 0; i < PREFETCH_DEGREE; i++) {
+        uint64_t pf_address = (page + (stride * (i + 1))) << LOG2_PAGE_SIZE;
+
+        // only issue a prefetch if the prefetch address is in the same 4 KB
+        // page as the current demand access address
+        if ((pf_address >> LOG2_REGION_SIZE) != (addr >> LOG2_REGION_SIZE))
+          break;
+
+        // check the MSHR occupancy to decide if we're going to prefetch to the
+        // L2 or LLC
+        if (MSHR.occupancy < (MSHR.SIZE >> 1)) {
+          prefetches_made++;
+          if (!prefetch_translation(ip, pf_address, FILL_STLB, 0, prefetch_id,
+                                    instruction))
+            prefetches_dropped++;
+          // prefetch_line(ip, addr, pf_address, FILL_STLB, 0);
+        }
+        // else
+        // prefetch_line(ip, addr, pf_address, FILL_LLC, 0);
+      }
+    }
+
+    trackers[index].last_page = page;
+    trackers[index].last_stride = stride;
+
+    for (int i = 0; i < IP_TRACKER_COUNT; i++) {
+      if (trackers[i].lru < trackers[index].lru)
+        trackers[i].lru++;
+    }
+    trackers[index].lru = 0;
+  }
+  return; // metadata_in;
+}
+
+void CACHE::stlb_prefetcher_cache_fill(uint64_t addr, uint32_t set,
+                                       uint32_t way, uint8_t prefetch,
+                                       uint64_t evicted_addr,
+                                       uint32_t metadata_in) {}
+
+void CACHE::stlb_prefetcher_final_stats() {
+  cout << endl << "STLB IP Stride: operated times: " << operated_times << endl;
+  cout << "STLB IP stride: prefetches made: " << prefetches_made << endl;
+  cout << "STLB IP stride: prefetches dropped: " << prefetches_dropped << endl;
+}
+
+/*uint32_t CACHE::l2c_prefetcher_cache_fill(uint64_t addr, uint32_t set,
+uint32_t way, uint8_t prefetch, uint64_t evicted_addr, uint32_t metadata_in)
+{
+  return metadata_in;
+}
+
+void CACHE::l2c_prefetcher_final_stats()
+{
+    cout << "CPU " << cpu << " L2C PC-based stride prefetcher final stats" <<
+endl;
+}*/
