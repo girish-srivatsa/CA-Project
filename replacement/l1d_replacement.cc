@@ -1,7 +1,21 @@
 #include "cache.h"
+<<<<<<< HEAD
 
 // initialize replacement state
 void CACHE::l1d_initialize_replacement() {
+=======
+#include "uncore.h"
+#include <fstream>
+using std::ofstream;
+
+ofstream out;
+
+uint64_t num_access=0;
+
+// initialize replacement state
+void CACHE::l1d_initialize_replacement() {
+  out.open("l1d.logs");
+>>>>>>> 0e852b1c57736c691df6989832332082713f6f75
   cout << NAME << " has LRU replacement policy" << endl;
 }
 
@@ -13,6 +27,22 @@ uint32_t CACHE::l1d_find_victim(uint32_t cpu, uint64_t instr_id, uint32_t set,
   return lru_victim(cpu, instr_id, set, current_set, ip, full_addr, type);
 }
 
+<<<<<<< HEAD
+=======
+uint64_t lru_pa_to_va(uint64_t full_addr){
+    uint64_t vfull_addr; // Inverse check of virtual address as base and bound are virtual
+    map<uint64_t, uint64_t>::iterator ppage_check = inverse_table.find(
+        full_addr >> LOG2_PAGE_SIZE);
+    if (ppage_check == inverse_table.end()) {
+    cout << "Inverse Mapping Failed! cache victim address: "<<full_addr<< endl;
+        assert(0);
+    }
+    vfull_addr = (ppage_check->second) << LOG2_PAGE_SIZE;
+    vfull_addr |=(full_addr & ((1 << LOG2_PAGE_SIZE) - 1));
+    return vfull_addr;
+}
+
+>>>>>>> 0e852b1c57736c691df6989832332082713f6f75
 // called on every cache hit and cache fill
 void CACHE::l1d_update_replacement_state(uint32_t cpu, uint32_t set,
                                          uint32_t way, uint64_t full_addr,
@@ -27,12 +57,30 @@ void CACHE::l1d_update_replacement_state(uint32_t cpu, uint32_t set,
   // setw(5) << set << " way: " << setw(2) << way; cout << hex << " paddr: " <<
   // setw(12) << paddr << " ip: " << setw(8) << ip << " victim_addr: " <<
   // victim_addr << dec << endl;
+<<<<<<< HEAD
 
+=======
+  out<<"ADDR: "<<lru_pa_to_va(full_addr)<<endl;
+>>>>>>> 0e852b1c57736c691df6989832332082713f6f75
   // baseline LRU
   if (hit && (type == WRITEBACK)) // writeback hit does not update LRU state
     return;
 
+<<<<<<< HEAD
   return lru_update(set, way);
 }
 
 void CACHE::l1d_replacement_final_stats() {}
+=======
+
+  if ((uncore.LLC.irreg_data_base<=lru_pa_to_va(full_addr)) && (lru_pa_to_va(full_addr)<uncore.LLC.irreg_data_bound)) {
+          num_access++;
+      }
+
+  return lru_update(set, way);
+}
+
+void CACHE::l1d_replacement_final_stats() {
+  cout<<"IRREG DATA L1D ACCESS: "<<num_access<<endl;
+}
+>>>>>>> 0e852b1c57736c691df6989832332082713f6f75

@@ -1,0 +1,4 @@
+Line 162 instruction.h - increased the registers_index_depend_on_me size
+by 1
+Line 1719 ooo_cpu.cc - increased the for loop count by 1, to accomodate 
+the previous increase

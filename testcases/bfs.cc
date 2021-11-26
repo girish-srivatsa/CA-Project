@@ -45,9 +45,21 @@ void PullKernel(Graph &g, vector<int> &srcData, vector<int> &dstData) {
 }
 
 int main(){
+<<<<<<< HEAD
     MyReader r("test_g18_k4.sg");
     Graph g = r.ReadSerializedGraph();
     PIN_registerGraphs("test_g18_k4.sg",true);
+=======
+<<<<<<< HEAD
+    MyReader r("random_u16_k3.sg");
+    Graph g = r.ReadSerializedGraph();
+    PIN_registerGraphs("random_u16_k3.sg",true);
+=======
+    MyReader r("test_g18_k4.sg");
+    Graph g = r.ReadSerializedGraph();
+    PIN_registerGraphs("test_g18_k4.sg",true);
+>>>>>>> 4665291916333887fb5ae931a8df4f5213679ffc
+>>>>>>> 0e852b1c57736c691df6989832332082713f6f75
     vector<int> srcData(g.num_nodes(), 1);
     vector<int> dstData(g.num_nodes(), 0);
     PIN_updateRegBaseBound((uint64_t)&srcData.front(),(uint64_t)&srcData.back()+sizeof(int));

@@ -1,10 +1,33 @@
 #include "cache.h"
+<<<<<<< HEAD
+=======
+#include "uncore.h"
+
+uint64_t l2c_num_access=0;
+uint64_t l2c_num_misses=0;
+>>>>>>> 0e852b1c57736c691df6989832332082713f6f75
 
 // initialize replacement state
 void CACHE::l2c_initialize_replacement() {
   cout << NAME << " has LRU replacement policy" << endl;
 }
 
+<<<<<<< HEAD
+=======
+uint64_t lru_l2c_pa_to_va(uint64_t full_addr){
+    uint64_t vfull_addr; // Inverse check of virtual address as base and bound are virtual
+    map<uint64_t, uint64_t>::iterator ppage_check = inverse_table.find(
+        full_addr >> LOG2_PAGE_SIZE);
+    if (ppage_check == inverse_table.end()) {
+    cout << "Inverse Mapping Failed! cache victim address: "<<full_addr<< endl;
+        assert(0);
+    }
+    vfull_addr = (ppage_check->second) << LOG2_PAGE_SIZE;
+    vfull_addr |=(full_addr & ((1 << LOG2_PAGE_SIZE) - 1));
+    return vfull_addr;
+}
+
+>>>>>>> 0e852b1c57736c691df6989832332082713f6f75
 // find replacement victim
 uint32_t CACHE::l2c_find_victim(uint32_t cpu, uint64_t instr_id, uint32_t set,
                                 const BLOCK *current_set, uint64_t ip,
@@ -32,7 +55,24 @@ void CACHE::l2c_update_replacement_state(uint32_t cpu, uint32_t set,
   if (hit && (type == WRITEBACK)) // writeback hit does not update LRU state
     return;
 
+<<<<<<< HEAD
   return lru_update(set, way);
 }
 
 void CACHE::l2c_replacement_final_stats() {}
+=======
+  if ((uncore.LLC.irreg_data_base<=lru_l2c_pa_to_va(full_addr)) && (lru_l2c_pa_to_va(full_addr)<uncore.LLC.irreg_data_bound)) {
+    l2c_num_access++;
+    if(!hit){
+      l2c_num_misses++;
+    }
+  }
+
+  return lru_update(set, way);
+}
+
+void CACHE::l2c_replacement_final_stats() {
+  cout<<"L2C ACCESSES: "<<l2c_num_access<<endl;
+  cout<<"L2C MISSES: "<<l2c_num_misses<<endl;
+}
+>>>>>>> 0e852b1c57736c691df6989832332082713f6f75
