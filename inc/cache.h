@@ -119,6 +119,8 @@ extern uint32_t PAGE_TABLE_LATENCY, SWAP_LATENCY;
 #define LLC_PQ_SIZE NUM_CPUS * 32
 #define LLC_MSHR_SIZE NUM_CPUS * 64
 #define LLC_LATENCY 20 // 5 (L1I or L1D) + 10 + 20 = 35 cycles
+#define LLC_NUM_EPOCHS 256
+
 
 class CACHE : public MEMORY {
 public:
@@ -134,6 +136,7 @@ public:
   uint8_t cache_type;
 
   Graph matrix; // Matrix for reading and next-reference
+  vector<uint8_t> rerefMatrix; 
   int64_t irreg_data_base, irreg_data_bound; // Registers
   int64_t curr_dst_vertex; // Current access
   bool is_pull; // Kernel Identification

@@ -9,6 +9,11 @@ random_device rand_dev;
 mt19937 generator(rand_dev());
 uniform_int_distribution<int> distribution{0, 1000000};
 
+uint8_t MSB_MASK = (1<<7);
+uint8_t NO_MSB_MASK = (1<<7)-1;
+uint8_t MAX_REREF = 127;
+uint8_t MAX_INTER_REREF = (1<<8)-1;
+
 ostream &operator<<(ostream &os, const PACKET &packet) {
   return os << " cpu: " << packet.cpu << " instr_id: " << packet.instr_id
             << " Translated: " << +packet.translated << " address: " << hex
@@ -20,6 +25,83 @@ ostream &operator<<(ostream &os, const PACKET &packet) {
             << " current_core_cycle: " << current_core_cycle[packet.cpu]
             << endl;
 };
+
+int my_ceil(int x, int y) {
+  return (x + y - 1) / y;
+}
+
+void createReRefMatrixInter(Graph &G, vector<uint8_t> &rerefMatrix, int numEpochs, bool kernel) {
+  int vertices_per_line = BLOCK_SIZE / (int)sizeof(int);
+  int vertices_per_epoch = my_ceil(G.num_nodes(), numEpochs);
+  int numCacheLines = my_ceil(G.num_nodes(),vertices_per_line);
+  vector<int> tempReference((numEpochs * numCacheLines),-1);
+  rerefMatrix.assign((numCacheLines * numEpochs),0);
+  for(NodeID i=0;i<G.num_nodes();i++){
+    int cacheLineNumber = i / vertices_per_line;
+    auto neigh = (kernel ? G.out_neigh(i) : G.in_neigh(i));
+    for(auto v: neigh){
+      int epoch = v / vertices_per_epoch;
+      tempReference[cacheLineNumber*numEpochs+epoch] = 0; // Used for inter
+    }
+  }
+  int vertices_per_sub_epoch = my_ceil(vertices_per_epoch,128);
+  for(int cache_line_no = 0;cache_line_no<numCacheLines ;cache_line_no++){
+    rerefMatrix[(numEpochs-1) * numCacheLines + cache_line_no] = MAX_INTER_REREF;
+    for(int epoch = numEpochs-2;epoch>=0;epoch--){
+      if(tempReference[cache_line_no*numEpochs+epoch]==-1) {
+        rerefMatrix[(epoch) * numCacheLines + cache_line_no]=tempReference[cache_line_no*numEpochs+epoch+1]+1;
+      }
+    }
+  }
+}
+
+void createReRefMatrixInterIntra(Graph &G, vector<uint8_t> &rerefMatrix, int numEpochs, bool kernel) {
+  int vertices_per_line = BLOCK_SIZE / (int)sizeof(int);
+  int vertices_per_epoch = my_ceil(G.num_nodes(),numEpochs);
+  int numCacheLines = my_ceil(G.num_nodes(),vertices_per_line);
+  vector<int> tempReference((numEpochs * numCacheLines),-1);
+  rerefMatrix.assign((numCacheLines * numEpochs),0);
+  for(NodeID i=0;i<G.num_nodes();i++){
+    int cacheLineNumber = i / vertices_per_line;
+    auto neigh = (kernel ? G.out_neigh(i) : G.in_neigh(i));
+    for(auto v: neigh){
+      int epoch = v / vertices_per_epoch;
+      tempReference[cacheLineNumber*numEpochs+epoch] = max(v, tempReference[cacheLineNumber*numEpochs+epoch]); // Used for Intra Distance
+    }
+  }
+  int vertices_per_sub_epoch = my_ceil(vertices_per_epoch,128);
+  
+  for(int cache_line_no = 0;cache_line_no<numCacheLines ;cache_line_no++){
+    if(tempReference[cache_line_no*numEpochs+numEpochs-1] != -1){
+      rerefMatrix[(numEpochs-1)*numCacheLines+cache_line_no] = MAX_REREF;
+      rerefMatrix[(numEpochs-1)*numCacheLines+cache_line_no] &= NO_MSB_MASK;
+    } else{
+      rerefMatrix[(numEpochs-1)*numCacheLines+cache_line_no] = MAX_REREF;
+      rerefMatrix[(numEpochs-1)*numCacheLines+cache_line_no] |= MSB_MASK;
+    }
+    for(int epoch = numEpochs-2;epoch>=0;epoch--){
+      if(tempReference[cache_line_no*numEpochs+epoch] != -1){
+        int sub_epoch_pos = tempReference[cache_line_no*numEpochs+epoch]-epoch*vertices_per_epoch;
+        int sub_epoch_number = sub_epoch_pos / vertices_per_sub_epoch;
+        rerefMatrix[epoch*numCacheLines+cache_line_no] = (uint8_t)sub_epoch_number;
+        rerefMatrix[epoch*numCacheLines+cache_line_no] &= NO_MSB_MASK;
+      } else{
+        if((rerefMatrix[(epoch+1)*numCacheLines+cache_line_no] & MSB_MASK) > 0) {
+          if(rerefMatrix[(epoch+1)*numCacheLines+cache_line_no] == (NO_MSB_MASK | MSB_MASK)){
+            rerefMatrix[epoch*numCacheLines+cache_line_no] = NO_MSB_MASK | MSB_MASK;
+          } 
+          else {
+            rerefMatrix[epoch*numCacheLines+cache_line_no] = rerefMatrix[(epoch+1)*numCacheLines+cache_line_no]+1;
+            rerefMatrix[epoch*numCacheLines+cache_line_no] |= MSB_MASK;
+          }
+        }
+        else {
+          rerefMatrix[epoch*numCacheLines+cache_line_no] = 1 | MSB_MASK;
+        }
+      }
+    }
+  }
+}
 
 void CACHE::updateCurrDst(int64_t curr_dst){
   if (distribution(generator) <= 10000)
@@ -42,6 +124,12 @@ void CACHE::registerGraphs(char* normal, bool kernel){
   uncore.LLC.matrix = r.ReadSerializedGraph(); 
   cout<<"Graphh Number of Nodes: "<<uncore.LLC.matrix.num_nodes()<<endl;
   is_pull = kernel;
+  #ifdef P_OPT_INTER
+  createReRefMatrixInter(uncore.LLC.matrix,uncore.LLC.rerefMatrix,LLC_NUM_EPOCHS,kernel);
+  #endif
+  #ifdef P_OPT_INTER_INTRA
+  createReRefMatrixInterIntra(uncore.LLC.matrix,uncore.LLC.rerefMatrix,LLC_NUM_EPOCHS,kernel);
+  #endif
   return;
 }
 
