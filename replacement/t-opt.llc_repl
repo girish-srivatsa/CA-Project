@@ -11,6 +11,9 @@
 #define PSEL_MAX ((1 << PSEL_WIDTH) - 1)
 #define PSEL_THRS PSEL_MAX / 2
 
+uint64_t num_accesses=0;
+uint64_t num_future_accesses=0;
+
 uint32_t rrpv[LLC_SET][LLC_WAY], bip_counter = 0, PSEL[NUM_CPUS];
 unsigned rand_sets[TOTAL_SDM_SETS];
 
@@ -59,6 +62,19 @@ int is_it_leader(uint32_t cpu, uint32_t set) {
       return ((i - start) / SDM_SIZE);
 
   return -1;
+}
+
+uint64_t pa_to_va(uint64_t full_addr){
+    uint64_t vfull_addr; // Inverse check of virtual address as base and bound are virtual
+    map<uint64_t, uint64_t>::iterator ppage_check = inverse_table.find(
+        full_addr >> LOG2_PAGE_SIZE);
+    if (ppage_check == inverse_table.end()) {
+    cout << "Inverse Mapping Failed! cache victim address: "<<full_addr<< endl;
+        assert(0);
+    }
+    vfull_addr = (ppage_check->second) << LOG2_PAGE_SIZE;
+    vfull_addr |=(full_addr & ((1 << LOG2_PAGE_SIZE) - 1));
+    return vfull_addr;
 }
 
 // called on every cache hit and cache fill
@@ -114,6 +130,12 @@ void CACHE::llc_update_replacement_state(uint32_t cpu, uint32_t set,
 
     } else // WE SHOULD NOT REACH HERE
         assert(0);
+  } else{
+      num_future_accesses++;
+      uint64_t vfull_addr = pa_to_va(full_addr);
+      if ((uncore.LLC.irreg_data_base<=vfull_addr) && (vfull_addr<uncore.LLC.irreg_data_bound)) {
+          num_accesses++;
+      }
   }
 }
 
@@ -135,18 +157,6 @@ uint64_t next_access(NodeID idx, Graph* G, NodeID currDst, uint8_t kernel){
     }
 }
 
-uint64_t pa_to_va(uint64_t full_addr){
-    uint64_t vfull_addr; // Inverse check of virtual address as base and bound are virtual
-    map<uint64_t, uint64_t>::iterator ppage_check = inverse_table.find(
-        full_addr >> LOG2_PAGE_SIZE);
-    if (ppage_check == inverse_table.end()) {
-    cout << "Inverse Mapping Failed! cache victim address: "<<full_addr<< endl;
-        assert(0);
-    }
-    vfull_addr = (ppage_check->second) << LOG2_PAGE_SIZE;
-    vfull_addr |=(full_addr & ((1 << LOG2_PAGE_SIZE) - 1));
-    return vfull_addr;
-}
 
 // BLOCK - NOde N 
 // CURRDST = Di
@@ -158,7 +168,7 @@ uint32_t CACHE::llc_find_victim(uint32_t cpu, uint64_t instr_id, uint32_t set,
                                 const BLOCK *current_set, uint64_t ip,
                                 uint64_t full_addr, uint32_t type) {
   // look for the maxRRPV line
-  if((irreg_data_base<0) || (curr_dst_vertex<0)){
+  if((uncore.LLC.irreg_data_base<0) || (uncore.LLC.curr_dst_vertex<0)){
     while (1) {
         for (int i = 0; i < LLC_WAY; i++)
         if (rrpv[set][i] == maxRRPV)
@@ -177,10 +187,10 @@ uint32_t CACHE::llc_find_victim(uint32_t cpu, uint64_t instr_id, uint32_t set,
     uint64_t next_reference, max_next_reference = 0;
     uint64_t best_way = LLC_WAY;
 
-    if ((irreg_data_base<=vfull_addr) && (vfull_addr<irreg_data_bound)) {
+    if ((uncore.LLC.irreg_data_base<=vfull_addr) && (vfull_addr<uncore.LLC.irreg_data_bound)) {
         next_reference = ULLONG_MAX;
-        NodeID curr_idx = (vfull_addr - irreg_data_base) / sizeof(int);
-        next_reference = next_access(curr_idx,&uncore.LLC.matrix,curr_dst_vertex,is_pull);
+        NodeID curr_idx = (vfull_addr - uncore.LLC.irreg_data_base) / sizeof(int);
+        next_reference = next_access(curr_idx,&uncore.LLC.matrix,uncore.LLC.curr_dst_vertex,uncore.LLC.is_pull);
         max_next_reference = next_reference;
 
         uint64_t numVertices = BLOCK_SIZE / (sizeof(int));    
@@ -190,17 +200,17 @@ uint32_t CACHE::llc_find_victim(uint32_t cpu, uint64_t instr_id, uint32_t set,
             if(!current_set[way].valid || !current_set[way].used){
                 return way;
             }
-            uint64_t block_va = pa_to_va(current_set[way].full_addr);
-            if( (block_va < irreg_data_base) || (block_va >= irreg_data_bound)){
+            uint64_t block_va = pa_to_va(current_set[way].address << LOG2_BLOCK_SIZE);
+            if( (block_va < uncore.LLC.irreg_data_base) || (block_va >= uncore.LLC.irreg_data_bound)){
                 return way;
             }
-            uint64_t block_idx = (block_va - irreg_data_base) / sizeof(int);
+            uint64_t block_idx = (block_va - uncore.LLC.irreg_data_base) / sizeof(int);
             
             for(uint64_t vertex=0;vertex<numVertices;vertex++){
                 uint64_t word_idx = block_idx+vertex;
                 uint64_t temp_reference;
                 if (word_idx < uncore.LLC.matrix.num_nodes()){
-                    temp_reference = next_access(word_idx,&uncore.LLC.matrix,curr_dst_vertex,is_pull);
+                    temp_reference = next_access(word_idx,&uncore.LLC.matrix,uncore.LLC.curr_dst_vertex,uncore.LLC.is_pull);
                     next_reference = min(next_reference,temp_reference);
                 }
             }
@@ -241,4 +251,7 @@ uint32_t CACHE::llc_find_victim(uint32_t cpu, uint64_t instr_id, uint32_t set,
 
 
 // use this function to print out your own stats at the end of simulation
-void CACHE::llc_replacement_final_stats() {}
+void CACHE::llc_replacement_final_stats() {
+    cout<<"Total LLC accesses: "<<num_future_accesses<<endl; // 20000
+    cout<<"Total Irreg accesses: "<<num_accesses<<endl; // 410
+}

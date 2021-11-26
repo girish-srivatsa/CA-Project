@@ -30,10 +30,10 @@
 
 //@Rahul: PTW
 #define INS_PAGE_TABLE_WALKER
-#define PTW_L1D
+//#define PTW_L1D
 //#define PTW_L2C
 //#define PTW_LLC
-//#define PTW_DRAM
+#define PTW_DRAM
 //#define PTW_L1D_L2C
 
 //#define IDEAL_CACHE_FOR_TRANSLATION_ACCESS

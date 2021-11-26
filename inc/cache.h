@@ -359,7 +359,7 @@ public:
   
   // GRAPH functions
   void updateCurrDst(int64_t curr_dst),
-       updateRegBaseBound(int64_t base, int64_t bound),
+       updateRegBaseBound(uint64_t base, uint64_t bound),
        registerGraphs(char* normal, bool kernel);
 
   // functions

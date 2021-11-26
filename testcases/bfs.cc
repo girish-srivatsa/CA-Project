@@ -34,15 +34,25 @@ void BFSKernel(Graph &g, NodeID source, vector<int> &depth){
   }
 }
 
-int main(){
-    MyReader r("test_g20_k2.sg");
-    Graph g = r.ReadSerializedGraph();
-    PIN_registerGraphs("test_g20_k2.sg",false);
-    vector<int> depth(g.num_nodes(), -1);
-    PIN_updateRegBaseBound((uint64_t)&depth.front(),(uint64_t)&depth.back()+sizeof(int));
-    for (NodeID source = 0; source < g.num_nodes(); ++source) {
-        if (depth[source]==-1) BFSKernel(g, source, depth);
+void PullKernel(Graph &g, vector<int> &srcData, vector<int> &dstData) {
+  for(int dst=0;dst<g.num_nodes();dst++){
+    PIN_updateCurrDst(dst);
+    for(auto src : g.in_neigh(dst)) {
+      dstData[dst] += srcData[src];
     }
-    // BFSKernel(g,540428,bmap);
+  }
+}
+
+int main(){
+    MyReader r("test_g15_k2.sg");
+    Graph g = r.ReadSerializedGraph();
+    PIN_registerGraphs("test_g15_k2.sg",true);
+    vector<int> srcData(g.num_nodes(), 1);
+    vector<int> dstData(g.num_nodes(), 0);
+    PIN_updateRegBaseBound((uint64_t)&srcData.front(),(uint64_t)&srcData.back()+sizeof(int));
+    // for (NodeID source = 0; source < g.num_nodes(); ++source) {
+    //     if (depth[source]==-1) BFSKernel(g, source, depth);
+    // }
+    PullKernel(g,srcData,dstData);
     return 0;
 }

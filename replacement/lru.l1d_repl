@@ -1,7 +1,15 @@
 #include "cache.h"
+#include "uncore.h"
+#include <fstream>
+using std::ofstream;
+
+ofstream out;
+
+uint64_t num_access=0;
 
 // initialize replacement state
 void CACHE::l1d_initialize_replacement() {
+  out.open("l1d.logs");
   cout << NAME << " has LRU replacement policy" << endl;
 }
 
@@ -27,12 +35,19 @@ void CACHE::l1d_update_replacement_state(uint32_t cpu, uint32_t set,
   // setw(5) << set << " way: " << setw(2) << way; cout << hex << " paddr: " <<
   // setw(12) << paddr << " ip: " << setw(8) << ip << " victim_addr: " <<
   // victim_addr << dec << endl;
-
+  out<<"ADDR: "<<full_addr<<endl;
   // baseline LRU
   if (hit && (type == WRITEBACK)) // writeback hit does not update LRU state
     return;
 
+
+  if ((uncore.LLC.irreg_data_base<=full_addr) && (full_addr<uncore.LLC.irreg_data_bound)) {
+          num_access++;
+      }
+
   return lru_update(set, way);
 }
 
-void CACHE::l1d_replacement_final_stats() {}
+void CACHE::l1d_replacement_final_stats() {
+  cout<<"IRREG DATA L1D ACCESS: "<<num_access<<endl;
+}

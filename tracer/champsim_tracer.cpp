@@ -14,11 +14,12 @@
 
 using namespace std;
 
-#define NUM_INSTR_DESTINATIONS 2
-#define NUM_INSTR_SOURCES 4
+#define NUM_INSTR_DESTINATIONS 3
+#define NUM_INSTR_SOURCES 5
 #define NUM_GRAPH_NUMERIC_OPERANDS 2
 #define NUM_GRAPH_STRING_OPERANDS 1
 #define MAX_GRAPH_FILE_NAME 64
+#define GRAPH_REGISTER 65
 
 typedef struct trace_instr_format {
     unsigned long long int ip;  // instruction pointer (program counter) value
@@ -152,6 +153,8 @@ void EndInstruction()
             // keep tracing
 
             if(curr_instr.is_graph_instruction){
+                curr_instr.source_registers[NUM_INSTR_SOURCES-1] = 0;
+                curr_instr.destination_registers[NUM_INSTR_DESTINATIONS-1] = (unsigned char)GRAPH_REGISTER;
                 switch(curr_instr.graph_opcode){
                     case 0:
                     cout<<"PIN_updateCurrDst("<<curr_instr.graph_operands[0]<<")"<<endl;
@@ -196,6 +199,7 @@ void BranchOrNot(UINT32 taken, ADDRINT Target)
     {
         curr_instr.branch_taken = 1;
     }
+    curr_instr.source_registers[NUM_INSTR_SOURCES-1] = (unsigned char)GRAPH_REGISTER;
     // std::cout<<"hurray "<<Target<<std::endl;
 }
 
@@ -239,6 +243,7 @@ void RegRead(UINT32 i, UINT32 index)
             }
         }
     }
+    curr_instr.source_registers[NUM_INSTR_SOURCES-1] = (unsigned char)GRAPH_REGISTER;
 }
 
 void RegWrite(REG i, UINT32 index)
@@ -280,6 +285,7 @@ void RegWrite(REG i, UINT32 index)
             }
         }
     }
+    curr_instr.source_registers[NUM_INSTR_SOURCES-1] = (unsigned char)GRAPH_REGISTER;
     /*
        if(index==0)
        {
@@ -315,6 +321,7 @@ void MemoryRead(VOID* addr, UINT32 index, UINT32 read_size)
             }
         }
     }
+    curr_instr.source_registers[NUM_INSTR_SOURCES-1] = (unsigned char)GRAPH_REGISTER;
 }
 
 void MemoryWrite(VOID* addr, UINT32 index)
@@ -344,6 +351,7 @@ void MemoryWrite(VOID* addr, UINT32 index)
             }
         }
     }
+    curr_instr.source_registers[NUM_INSTR_SOURCES-1] = (unsigned char)GRAPH_REGISTER;
     /*
        if(index==0)
        {

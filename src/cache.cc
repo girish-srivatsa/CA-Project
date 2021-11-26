@@ -22,16 +22,16 @@ ostream &operator<<(ostream &os, const PACKET &packet) {
 };
 
 void CACHE::updateCurrDst(int64_t curr_dst){
-  if (distribution(generator) <= 10)
+  if (distribution(generator) <= 10000)
     cout<<"updateCurrDst("<<curr_dst<<")"<<endl;
   curr_dst_vertex = curr_dst;
   return;
 }
 
-void CACHE::updateRegBaseBound(int64_t base, int64_t bound){
-  if(distribution(generator) <= 10) cout << "PIN_updateRegBaseBound( " << base << ", " << bound << ")\n";
-  irreg_data_base = base;
-  irreg_data_bound = bound;
+void CACHE::updateRegBaseBound(uint64_t base, uint64_t bound){
+  cout << "PIN_updateRegBaseBound( " << base << ", " << bound << ")\n";
+  irreg_data_base = (int64_t)base;
+  irreg_data_bound = (int64_t)bound;
   return;
 }
 

@@ -196,7 +196,7 @@ void O3_CPU::read_from_trace() {
           arch_instr.is_graph_instruction = current_instr.is_graph_instruction;
           arch_instr.graph_opcode = current_instr.graph_opcode;
           for (int i = 0; i < NUM_GRAPH_NUMERIC_OPERANDS; ++i)
-            arch_instr.graph_operands[i] = (uint8_t)current_instr.graph_operands[i];
+            arch_instr.graph_operands[i] = current_instr.graph_operands[i];
           for(int i=0;i<MAX_GRAPH_FILE_NAME;i++){
             arch_instr.graph_name[i] = current_instr.graph_name[i];
           }
@@ -207,7 +207,7 @@ void O3_CPU::read_from_trace() {
                 uncore.LLC.updateCurrDst((int64_t)arch_instr.graph_operands[0]);
                 break;
               case 1:
-                uncore.LLC.updateRegBaseBound((int64_t)arch_instr.graph_operands[0], (int64_t)arch_instr.graph_operands[1]);
+                uncore.LLC.updateRegBaseBound(arch_instr.graph_operands[0], arch_instr.graph_operands[1]);
                 break;
               case 2:
                 uncore.LLC.registerGraphs(arch_instr.graph_name,arch_instr.graph_operands[0]);
@@ -1646,11 +1646,30 @@ void O3_CPU::complete_execution(uint32_t rob_index) {
   if (ROB.entry[rob_index].is_memory == 0) {
     if ((ROB.entry[rob_index].executed == INFLIGHT) &&
         (ROB.entry[rob_index].event_cycle <= current_core_cycle[cpu])) {
-
+      
       ROB.entry[rob_index].executed = COMPLETED;
       inflight_reg_executions--;
       completed_executions++;
-
+      /*
+      #ifdef GRAPH_RUN
+      if(ROB.entry[rob_index].is_graph_instruction>0){
+          // cout<<"yes? "<<+ROB.entry[rob_index].is_graph_instruction<<" opcode="<<+ROB.entry[rob_index].graph_opcode<<" operand="<<ROB.entry[rob_index].graph_operands[0]<<endl;
+          switch(ROB.entry[rob_index].graph_opcode){
+            case 0:
+              uncore.LLC.updateCurrDst((int64_t)ROB.entry[rob_index].graph_operands[0]);
+              break;
+            case 1:
+              uncore.LLC.updateRegBaseBound(ROB.entry[rob_index].graph_operands[0], ROB.entry[rob_index].graph_operands[1]);
+              break;
+            case 2:
+              uncore.LLC.registerGraphs(ROB.entry[rob_index].graph_name,ROB.entry[rob_index].graph_operands[0]);
+              break;
+            default:
+              assert(0); // Never Hit
+          }
+        }
+      #endif
+      */
       if (ROB.entry[rob_index].reg_RAW_producer)
         reg_RAW_release(rob_index);
 
