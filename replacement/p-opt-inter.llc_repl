@@ -153,8 +153,6 @@ uint64_t next_access(NodeID idx, Graph* G, NodeID currDst, vector<uint8_t> &rere
     if((rerefMatrix[epoch*numCacheLines+cache_line_no])>0){
         return rerefMatrix[epoch*numCacheLines+cache_line_no];
     } else {
-        int sub_epoch_pos = currDst - epoch * numCacheLines;
-        int sub_epoch_number = sub_epoch_pos / vertices_per_sub_epoch;
         return rerefMatrix[(epoch+1)*numCacheLines+cache_line_no]+1;
     }
 }

@@ -139,6 +139,10 @@ void CACHE::llc_update_replacement_state(uint32_t cpu, uint32_t set,
   }
 }
 
+uint8_t LLC_MSB_MASK = (1<<7);
+uint8_t LLC_NO_MSB_MASK = (1<<7)-1;
+uint8_t LLC_MAX_REREF = 127;
+
 int my_llc_ceil(int x, int y) {
   return (x + y - 1) / y;
 }
@@ -150,12 +154,25 @@ uint64_t next_access(NodeID idx, Graph* G, NodeID currDst, vector<uint8_t> &rere
     int epoch = currDst / vertices_per_epoch; 
     int cache_line_no = idx / vertices_per_line;
     int numCacheLines = my_llc_ceil(G -> num_nodes(), vertices_per_line);
-    if((rerefMatrix[epoch*numCacheLines+cache_line_no]&MSB_MASK)>0){
-        return rerefMatrix[epoch*numCacheLines+cache_line_no];
+    if((rerefMatrix[epoch*numCacheLines+cache_line_no]&LLC_MSB_MASK)>0){
+        return rerefMatrix[epoch*numCacheLines+cache_line_no] & LLC_NO_MSB_MASK;
     } else {
         int sub_epoch_pos = currDst - epoch * numCacheLines;
         int sub_epoch_number = sub_epoch_pos / vertices_per_sub_epoch;
-        return rerefMatrix[(epoch+1)*numCacheLines+cache_line_no]+1;
+        if(rerefMatrix[epoch*numCacheLines+cache_line_no]>=sub_epoch_number){
+            return 0;
+        } else {
+            if((rerefMatrix[(epoch+1)*numCacheLines+cache_line_no]&LLC_MSB_MASK)>0){
+                if(rerefMatrix[(epoch+1)*numCacheLines+cache_line_no]==LLC_MAX_REREF) {
+                    return LLC_MAX_REREF;
+                } else {
+                    return rerefMatrix[(epoch+1)*numCacheLines+cache_line_no]+1;
+                }
+            }
+            else {
+                return 1;
+            }
+        }
     }
 }
 

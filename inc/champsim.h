@@ -20,8 +20,8 @@
 #include <string>
 
 // #define T_OPT
-#define P_OPT_INTER
-// #define P_OPT_INTER_INTRA
+// #define P_OPT_INTER
+#define P_OPT_INTER_INTRA
 
 // USEFUL MACROS
 //#define DEBUG_PRINT

@@ -48,7 +48,6 @@ void CACHE::l1d_update_replacement_state(uint32_t cpu, uint32_t set,
   // setw(5) << set << " way: " << setw(2) << way; cout << hex << " paddr: " <<
   // setw(12) << paddr << " ip: " << setw(8) << ip << " victim_addr: " <<
   // victim_addr << dec << endl;
-  out<<"ADDR: "<<lru_pa_to_va(full_addr)<<endl;
   // baseline LRU
   if (hit && (type == WRITEBACK)) // writeback hit does not update LRU state
     return;
